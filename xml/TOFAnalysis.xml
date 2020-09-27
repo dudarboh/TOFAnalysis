@@ -1,0 +1,27 @@
+<marlin>
+	<execute>
+		<processor name="TOFAnalysis"/>
+	</execute>
+
+	<global>
+		<parameter name="LCIOInputFiles" value="/pnfs/desy.de/ilc/prod/ilc/mc-opt-3/ild/rec/1-calib/single/ILD_l5_o2_v02_nobg/v02-00-01/00010758/000/rv02-00-01.sv02-00-01.mILD_l5_o2_v02_nobg.E1-calib.I110084.Ps_pm321_prnd.e0.p0.n001_001.d_rec_00010758_681.slcio"/>
+
+		<parameter name="MaxRecordNumber" value="0" />
+		<!-- tell Marlin to run the first n events, if n==0, then run all events -->
+        <!-- <parameter name="SkipNEvents" value="10010" /> -->
+
+        <parameter name="SupressCheck" value="false" />
+		<parameter name="Verbosity" options="DEBUG0-4,MESSAGE0-4,WARNING0-4,ERROR0-4,SILENT">DEBUG</parameter>
+		<!-- tell what debug information will be shown on the screen -->
+		<parameter name="AllowToModifyEvent" value="false" />
+		<!-- give Marlin right to modify events -->
+	</global>
+
+	<processor name="TOFAnalysis" type="myTOFAnalysis">
+        <parameter name="output_filename"></parameter>
+	</processor>
+
+	<constants>
+	</constants>
+
+</marlin>

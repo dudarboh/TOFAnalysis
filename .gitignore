@@ -1,0 +1,5 @@
+build/
+lib/
+doc/*
+!doc/Doxyfile
+*.png

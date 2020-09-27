@@ -1,0 +1,11 @@
+executable = job.sh
+arguments = $(file) $(ProcId)
+should_transfer_files = IF_NEEDED
+when_to_transfer_output = ON_EXIT
+
+path_to_storage=/nfs/dust/ilc/user/dudarboh/job_files/output
+log = $(path_to_storage)/$(ProcId).log
+output = $(path_to_storage)/$(ProcId).out
+error = $(path_to_storage)/$(ProcId).err
+
+queue file from rec_kaons.txt
