@@ -1,4 +1,4 @@
-from ROOT import TFile, TH1F, TCanvas, TH2F, gStyle, TGraph
+from ROOT import TFile, TH1F, TCanvas, TH2F, gStyle, TGraph, THStack
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import mpl_toolkits.mplot3d.art3d as art3d
@@ -200,7 +200,8 @@ def plot_mass():
     h1.SetTitle("title; mass, [GeV]; N tracks")
 
     length = "(abs((phiCalo-phi)/omega)*sqrt(1. + tanL*tanL))"
-    beta = "({}/(MinIf$(tHitCluster, tHitCluster>0)*{}))".format(length, c)
+
+    beta = "({}/({}*{}))".format(length, tof, c)
     mass = "p*sqrt(1.-{0}*{0})/{0}".format(beta)
 
     tree.Draw("{}>>h1".format(mass), "nHitsTrack > 200 && p > 1 && p < 10")
@@ -208,55 +209,119 @@ def plot_mass():
 
 
 
-def plot_time():
+def tof_analysis():
     canvas = TCanvas()
+    h1 = TH1F("h1", "TOF fit", 100, 5., 20.)
+    h1.SetLineColor(1)
+    h2 = TH1F("h2", "TOF avg", 100, 5., 20.)
+    h2.SetLineColor(2)
+    h3 = TH1F("h3", "TOF closest", 100, 5., 20.)
+    h3.SetLineColor(3)
+
     for idx, event in enumerate(tree):
         if idx % 1000 == 0:
             print(idx, "event")
-        n_pfo = event.nHitsCluster.size()
+        # if idx == 1000:
+        #     break
+
+        n_pfo = event.nGoodPFOs
         for pfo in range(n_pfo):
-            gr = TGraph()
-            gr.SetMarkerStyle(20)
-            n = 0
-            times = []
-            x0 = event.xRefCalo[pfo]
-            y0 = event.yRefCalo[pfo]
-            z0 = event.zRefCalo[pfo]
-            r0 = np.sqrt(x0*x0+y0*y0+z0*z0)
+            # Make hit list
+            hits = []
             for h in range(event.nHitsCluster[pfo]):
                 t = event.tHitCluster[pfo][h]
-                x = event.xHitCluster[pfo][h]
-                y = event.yHitCluster[pfo][h]
-                z = event.zHitCluster[pfo][h]
-                r = np.sqrt((x-x0)**2+(y-y0)**2+(z-z0)**2)
-                if event.dToLineHitCluster[pfo][h] > 20.:
+                r = event.dToRefPointHitCluster[pfo][h]
+                d = event.dToLineHitCluster[pfo][h]
+                layer = event.layerHitCluster[pfo][h]
+                hits.append((t, r, d, layer))
+            if hits == []:
+                continue
+
+            length = event.length[pfo]
+
+            # Closest
+            hits_closest = sorted(hits, key=lambda x: x[1])
+            tof_closest = hits_closest[0][0] - hits_closest[0][1]/c
+            if tof_closest != 0:
+                beta_closest = length/(tof_closest*c)
+                if 0. < beta_closest < 1.:
+                    # h3.Fill(event.p[pfo] * np.sqrt(1. - beta_closest*beta_closest)/beta_closest)
+                    h3.Fill(tof_closest)
+
+            # Franks Average
+            hits_by_layers = [[] for i in range(10)]
+            for t, r, d, layer in hits:
+                if layer > 9:
                     continue
-                times.append((t, r))
+                hits_by_layers[int(layer)].append((t, r, d))
+            sum = 0.
+            arr_length = 0.
+            for l in hits_by_layers:
+                if l == []:
+                    continue
+                l.sort(key=lambda x: x[2])
+                sum += l[0][0] - l[0][1]/c
+                arr_length += 1.
 
-            times.sort(key=lambda x: x[1])
-            for t, d in times:
-                gr.SetPoint(n, d, t)
+            tof_avg = sum/arr_length if arr_length !=0. else 0.
+            if tof_avg != 0:
+                beta_avg = length/(tof_avg*c)
+                if 0. < beta_avg < 1.:
+                    # h2.Fill(event.p[pfo] * np.sqrt(1. - beta_avg*beta_avg)/beta_avg)
+                    h2.Fill(tof_avg)
+
+            #Fit
+            gr = TGraph()
+            n = 0
+            for t, r, d, layer in hits:
+                # if d < 10. and r < 100:
+                gr.SetPoint(n, r, t)
                 n += 1
+            if n == 0:
+                continue
 
-            gr.Draw("AP")
-            canvas.Update()
-            time.sleep(1.)
+            gr.Fit("pol1", "Q")
+            fit = gr.GetFunction("pol1")
+            tof_fit = fit.GetParameter(0)
+            if 1.95 < event.p[pfo] < 2.05:
+                gr.Draw("AP")
+                print(event.p[pfo])
+                gr.SetMarkerStyle(20)
+                gr.SetTitle("Fit of a TOF vs distance to impact point; d, [mm];TOF, [ns]")
+                canvas.Update()
+            # time.sleep(3)
+                raw_input("wait")
+            if fit.GetChisquare() > 1.:
+                continue
+            if tof_fit != 0:
+                beta_fit = length/(tof_fit*c)
+                if 0. < beta_fit < 1.:
+                    # h1.Fill(event.p[pfo] * np.sqrt(1. - beta_fit*beta_fit)/beta_fit)
+                    h1.Fill(tof_fit)
+
+    hs = THStack()
+    hs.Add(h1)
+    hs.Add(h2)
+    hs.Add(h3)
+    hs.Draw("nostack")
+    canvas.BuildLegend()
+    canvas.Update()
+    input("wait")
 
 
 def plot_histo():
     canvas = TCanvas()
-    h1 = TH1F("h1", "title", 200, 0, 150)
-    h1.SetTitle("title; x; y")
+    h1 = TH1F("h1", "Distance between last tracker hit and impact point in ECAL;d, [mm];N_{PFOs}", 600, 0, 400)
     # var = "(zRefCalo-zRefLast)"
 
     # length = "abs((phiCalo-phi)/omegaCalo)*sqrt(1. + tanLCalo*tanLCalo)"
     # var = "{}/(Sum$(tHitCluster)/Length$(tHitCluster)*{})".format(length, c)
 
-    # var = "sqrt((xRefCalo-xRefLast)*(xRefCalo-xRefLast) + (yRefCalo-yRefLast)*(yRefCalo-yRefLast) + (zRefCalo-zRefLast)*(zRefCalo-zRefLast))"
+    var = "sqrt((xRefCalo-xRefLast)*(xRefCalo-xRefLast) + (yRefCalo-yRefLast)*(yRefCalo-yRefLast) + (zRefCalo-zRefLast)*(zRefCalo-zRefLast))"
 
     # var = "abs((phiCalo-phi)*(1./omegaCalo))*sqrt(1. + tanLCalo*tanLCalo)"
 
-    var = "dToLineHitCluster"
+    # var = "dToLineHitCluster"
 
     tree.Draw("{}>>h1".format(var))
     input("wait")
@@ -265,7 +330,7 @@ def plot_histo():
 
 # plot_event(2)
 # plot_track(0, 1)
-# plot_histo()
 # beta_p()
 # plot_mass()
-plot_time()
+tof_analysis()
+# plot_histo()

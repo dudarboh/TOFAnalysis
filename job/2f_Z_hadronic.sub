@@ -1,0 +1,12 @@
+executable = /afs/desy.de/user/d/dudarboh/ILCSoft/TOFAnalysis/job/2f_Z_hadronic.sh
+arguments = $(ProcId)
+
+initialdir = /nfs/dust/ilc/user/dudarboh/job_files/jobs
+should_transfer_files = IF_NEEDED
+when_to_transfer_output = ON_EXIT
+
+log = ../log/$(ProcId).log
+output = ../out/$(ProcId).out
+error = ../err/$(ProcId).err
+
+queue 337

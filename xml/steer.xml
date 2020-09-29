@@ -4,7 +4,9 @@
 	</execute>
 
 	<global>
-		<parameter name="LCIOInputFiles" value="/pnfs/desy.de/ilc/prod/ilc/mc-opt-3/ild/rec/1-calib/single/ILD_l5_o2_v02_nobg/v02-00-01/00010758/000/rv02-00-01.sv02-00-01.mILD_l5_o2_v02_nobg.E1-calib.I110084.Ps_pm321_prnd.e0.p0.n001_001.d_rec_00010758_681.slcio"/>
+		<parameter name="LCIOInputFiles">
+            dummy.slcio
+        </parameter>
 
 		<parameter name="MaxRecordNumber" value="0" />
 		<!-- tell Marlin to run the first n events, if n==0, then run all events -->

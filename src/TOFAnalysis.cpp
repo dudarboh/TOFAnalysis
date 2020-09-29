@@ -1,12 +1,5 @@
 #include "TOFAnalysis.h"
 
-
-#ifdef __ROOTCLING__
-#pragma link C++ class vector< vector <int> > +;
-#pragma link C++ class vector< vector <float> > +;
-#pragma link C++ class vector< vector <double> > +;
-#endif
-
 TOFAnalysis aTOFAnalysis;
 
 TOFAnalysis::TOFAnalysis() : Processor("myTOFAnalysis"),
@@ -20,10 +13,9 @@ TOFAnalysis::~TOFAnalysis(){
 }
 
 void TOFAnalysis::init(){
-    gInterpreter->GenerateDictionary("vector< vector <int> >", "vector");
-    gInterpreter->GenerateDictionary("vector< vector <float> >", "vector");
-    gInterpreter->GenerateDictionary("vector< vector <double> >", "vector");
-
+    gInterpreter->GenerateDictionary("vector <vector<int> >", "vector");
+    gInterpreter->GenerateDictionary("vector <vector<float> >", "vector");
+    gInterpreter->GenerateDictionary("vector <vector<double> >", "vector");
     _nEvt = 0;
     _start = chrono::system_clock::now();
 
@@ -231,6 +223,7 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         _yHitCluster.push_back(yHitCluster);
         _zHitCluster.push_back(zHitCluster);
         _tHitCluster.push_back(tHitCluster);
+        _layerHitCluster.push_back(layerHitCluster);
         _dToLineHitCluster.push_back(dToLineHitCluster);
         _dToRefPointHitCluster.push_back(dToRefPointHitCluster);
 
