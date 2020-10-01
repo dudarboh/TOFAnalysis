@@ -64,62 +64,59 @@ protected:
     string _outputFileName;
 
     //root file data
-    int _nPFOs;
-    int _nGoodPFOs;
-    vector <float> _p;
-    vector <float> _charge;
+    float _p;
+    float _charge;
 
-    vector <float> _d0;
-    vector <float> _phi;
-    vector <float> _omega;
-    vector <float> _z0;
-    vector <float> _tanL;
-    vector <float> _chi2;
-    vector <int> _ndf;
-    vector <float> _dEdX;
-    vector <float> _length;
+    float _d0;
+    float _phi;
+    float _omega;
+    float _z0;
+    float _tanL;
+    float _chi2;
+    int _ndf;
+    float _dEdX;
+    float _length;
 
-    vector <float> _d0Last;
-    vector <float> _phiLast;
-    vector <float> _omegaLast;
-    vector <float> _z0Last;
-    vector <float> _tanLLast;
-    vector <float> _xRefLast;
-    vector <float> _yRefLast;
-    vector <float> _zRefLast;
+    float _d0LastState;
+    float _phiLastState;
+    float _omegaLastState;
+    float _z0LastState;
+    float _tanLLastState;
+    float _xRefLastState;
+    float _yRefLastState;
+    float _zRefLastState;
 
-    vector <float> _d0Calo;
-    vector <float> _phiCalo;
-    vector <float> _omegaCalo;
-    vector <float> _z0Calo;
-    vector <float> _tanLCalo;
-    vector <float> _xRefCalo;
-    vector <float> _yRefCalo;
-    vector <float> _zRefCalo;
+    float _d0CalState;
+    float _phiCalState;
+    float _omegaCalState;
+    float _z0CalState;
+    float _tanLCalState;
+    float _xRefCalState;
+    float _yRefCalState;
+    float _zRefCalState;
 
-    vector <int> _nHitsTrack;
-    vector <int> _nHitsTPC;
-    vector < vector<double> > _xHit;
-    vector < vector<double> > _yHit;
-    vector < vector<double> > _zHit;
-    vector < vector<float> > _tHit;
+    float _xCluster;
+    float _yCluster;
+    float _zCluster;
+    float _phiCluster;
+    float _thetaCluster;
 
-    vector <float> _xCluster;
-    vector <float> _yCluster;
-    vector <float> _zCluster;
-    vector <float> _phiCluster;
-    vector <float> _thetaCluster;
+    int _nTrHits;
+    int _nTPCHits;
+    vector <double> _xTrHit;
+    vector <double> _yTrHit;
+    vector <double> _zTrHit;
+    vector <float> _tTrHit;
 
     // Only hits with some time info and from ECAL
-    vector <int> _nHitsCluster;
-    vector < vector<float> > _xHitCluster;
-    vector < vector<float> > _yHitCluster;
-    vector < vector<float> > _zHitCluster;
-    vector < vector<float> > _tHitCluster;
-    vector < vector<int> > _layerHitCluster;
-    vector < vector<float> > _dToLineHitCluster;
-    vector < vector<float> > _dToRefPointHitCluster;
-
+    int _nCalHits;
+    vector <float> _xCalHit;
+    vector <float> _yCalHit;
+    vector <float> _zCalHit;
+    vector <float> _tCalHit;
+    vector <int> _layerCalHit;
+    vector <float> _dToLineCalHit;
+    vector <float> _dToRefPointCalHit;
 
     // lcio//DD4HEP specifics
     const int _TPCindex;

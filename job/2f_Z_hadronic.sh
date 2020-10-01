@@ -5,21 +5,29 @@ export MARLIN_DLL=$MARLIN_DLL:/afs/desy.de/user/d/dudarboh/ILCSoft/TOFAnalysis/l
 # $1 is a job number. It defines name of the output root file and list of slcio files.
 # It takes 35 files per job. So 12k files in total fit in 350 jobs
 
-rm -rf job${1}
-mkdir job${1}
-cd ./job${1}
-
 #n files per job
 n_files=35
-start_file=$((${n_files} * ${1} + 1))
-end_file=$((${n_files} * (${1} + 1)))
+start_job=0
+job_number=`echo "${start_job} + ${1}" | bc`
+
+rm -rf job${job_number}
+mkdir job${job_number}
+cd ./job${job_number}
+
+start_file=`echo "$n_files * $job_number + 1" | bc`
+echo "Start_file: $start_file"
+
+end_file=`echo "$n_files * ($job_number + 1)" | bc `
+echo "End_file: $end_file"
 
 slcio_files=`sed -n "$start_file , $end_file p" /afs/desy.de/user/d/dudarboh/ILCSoft/TOFAnalysis/job/2f_Z_hadronic.txt`
 slcio_files=`ls -1 $slcio_files | tr '\n' ' '`
 
-Marlin /afs/desy.de/user/d/dudarboh/ILCSoft/TOFAnalysis/xml/steer.xml --global.LCIOInputFiles="${slcio_files}" --TOFAnalysis.output_filename="${1}.root"
+sleep `echo "0.01 * $job_number" | bc`
 
-rm -f ../${1}.root
-mv ${1}.root ..
+Marlin /afs/desy.de/user/d/dudarboh/ILCSoft/TOFAnalysis/xml/steer.xml --global.LCIOInputFiles="${slcio_files}" --TOFAnalysis.output_filename="${job_number}.root"
+
+rm -f ../${job_number}.root
+mv ${job_number}.root ..
 cd ..
-rm -rf job${1}
+rm -rf job${job_number}
