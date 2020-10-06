@@ -1,5 +1,5 @@
 executable = /afs/desy.de/user/d/dudarboh/ILCSoft/TOFAnalysis/job/2f_Z_hadronic.sh
-arguments = $(ProcId)
+arguments = $(file) $(ProcId)
 
 initialdir = /nfs/dust/ilc/user/dudarboh/job_files/jobs
 should_transfer_files = NO
@@ -10,6 +10,7 @@ error = ../err/$(ProcId).err
 
 request_cpus = 1
 request_memory = 500MB
-request_disk = 10MB
+request_disk = 1500MB
+Requirements = OpSysAndVer == "CentOS7"
 
-queue 327
+queue file from /afs/desy.de/user/d/dudarboh/ILCSoft/TOFAnalysis/job/2f_Z_test.txt

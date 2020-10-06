@@ -8,8 +8,8 @@ c = 299.792458
 def algo_closest(p, l_trk, hits):
     hit = min(hits, key = lambda x: x["r"])
     tof = hit["t"] - hit["r"]/c
-    if tof <= 0.:
-        return 0.
+    # if tof <= 0.:
+    #     return 0.
     beta = l_trk/(tof*c)
     return p * np.sqrt(1. - beta*beta)/beta
 
@@ -23,8 +23,8 @@ def algo_avg(p, l_trk, hits):
         hit = min(layer_hits, key=lambda x: x["d"])
         tofs.append(hit["t"] - hit["r"]/c)
     n_tofs = len(tofs)
-    if n_tofs == 0:
-        return 0.
+    # if n_tofs == 0:
+    #     return 0.
     tof = sum(tofs)/n_tofs
     beta = l_trk/(tof*c)
     return p * np.sqrt(1. - beta*beta)/beta

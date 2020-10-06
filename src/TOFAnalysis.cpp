@@ -21,7 +21,7 @@ void TOFAnalysis::init(){
 
     //Record only PFO with 1 track and 1 cluster
     //PFO parameters
-    _tree->Branch("p", &_p, "p/F");
+    _tree->Branch("p", &_p, "p/D");
     _tree->Branch("charge", &_charge, "charge/F");
     //Track parameters
     _tree->Branch("d0", &_d0, "d0/F");
@@ -32,9 +32,17 @@ void TOFAnalysis::init(){
     _tree->Branch("chi2", &_chi2, "chi2/F");
     _tree->Branch("ndf", &_ndf, "ndf/I");
     _tree->Branch("dEdX", &_dEdX, "dEdX/F");
-    _tree->Branch("length", &_length, "length/F");
 
     //Track states
+    _tree->Branch("d0FirstState", &_d0FirstState, "d0FirstState/F");
+    _tree->Branch("phiFirstState", &_phiFirstState, "phiFirstState/F");
+    _tree->Branch("omegaFirstState", &_omegaFirstState, "omegaFirstState/F");
+    _tree->Branch("z0FirstState", &_z0FirstState, "z0FirstState/F");
+    _tree->Branch("tanLFirstState", &_tanLFirstState, "tanLFirstState/F");
+    _tree->Branch("xRefFirstState", &_xRefFirstState, "xRefFirstState/F");
+    _tree->Branch("yRefFirstState", &_yRefFirstState, "yRefFirstState/F");
+    _tree->Branch("zRefFirstState", &_zRefFirstState, "zRefFirstState/F");
+
     _tree->Branch("d0LastState", &_d0LastState, "d0LastState/F");
     _tree->Branch("phiLastState", &_phiLastState, "phiLastState/F");
     _tree->Branch("omegaLastState", &_omegaLastState, "omegaLastState/F");
@@ -52,12 +60,6 @@ void TOFAnalysis::init(){
     _tree->Branch("xRefCalState", &_xRefCalState, "xRefCalState/F");
     _tree->Branch("yRefCalState", &_yRefCalState, "yRefCalState/F");
     _tree->Branch("zRefCalState", &_zRefCalState, "zRefCalState/F");
-
-    _tree->Branch("xCluster", &_xCluster, "xCluster/F");
-    _tree->Branch("yCluster", &_yCluster, "yCluster/F");
-    _tree->Branch("zCluster", &_zCluster, "zCluster/F");
-    _tree->Branch("phiCluster", &_phiCluster, "phiCluster/F");
-    _tree->Branch("thetaCluster", &_thetaCluster, "thetaCluster/F");
 
     _tree->Branch("nTrHits", &_nTrHits, "nTrHits/I");
     _tree->Branch("nTPCHits", &_nTPCHits, "nTPCHits/I");
@@ -94,8 +96,7 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         return;
     }
 
-    int nPFOs = col->getNumberOfElements();
-    for (int p=0; p<nPFOs; ++p){
+    for (int p=0; p<col->getNumberOfElements(); ++p){
         const ReconstructedParticle* pfo = dynamic_cast<ReconstructedParticle*>(col->getElementAt(p));
         // Look only at PFOs with 1 cluster and 1 track
         if(pfo->getClusters().size() != 1 || pfo->getTracks().size() != 1) continue;
@@ -113,6 +114,17 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         _ndf = track->getNdf();
         _dEdX = track->getdEdx();
         _nTPCHits = track->getSubdetectorHitNumbers()[_TPCindex];
+
+        const TrackState* trackFirstState = track->getTrackState(TrackState::AtFirstHit);
+        _d0FirstState = trackFirstState->getD0();
+        _phiFirstState = trackFirstState->getPhi();
+        _omegaFirstState = trackFirstState->getOmega();
+        _z0FirstState = trackFirstState->getZ0();
+        _tanLFirstState = trackFirstState->getTanLambda();
+        const float* firstPos = trackFirstState->getReferencePoint();
+        _xRefFirstState = firstPos[0];
+        _yRefFirstState = firstPos[1];
+        _zRefFirstState = firstPos[2];
 
         const TrackState* trackLastState = track->getTrackState(TrackState::AtLastHit);
         _d0LastState = trackLastState->getD0();
@@ -136,16 +148,6 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         _yRefCalState = calPos[1];
         _zRefCalState = calPos[2];
 
-        _length = abs((_phiCalState - _phi)/_omegaCalState)*sqrt(1. + _tanLCalState*_tanLCalState);
-
-        const Cluster* cluster = pfo->getClusters()[0];
-        const float* clusterPos = cluster->getPosition();
-        _xCluster = clusterPos[0];
-        _yCluster = clusterPos[1];
-        _zCluster = clusterPos[2];
-        _phiCluster = cluster->getIPhi();
-        _thetaCluster = cluster->getITheta();
-
         const TrackerHitVec& trHits = track->getTrackerHits();
         _nTrHits = trHits.size();
         for (int i = 0; i < _nTrHits; ++i) {
@@ -159,6 +161,7 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         // End of Tracker variables
         // Writing calorimeter hits
 
+        const Cluster* cluster = pfo->getClusters()[0];
         const CalorimeterHitVec& calHits = cluster->getCalorimeterHits();
         //Count only ECAl hits with time information
         _nCalHits = 0;

@@ -1,6 +1,8 @@
-from ROOT import TFile, TH1F, TCanvas, TH2F, gStyle, TGraph, THStack, TChain
+import ROOT
 import time
-from algorithms import *
+import cProfile, pstats, io
+from pstats import SortKey
+import numpy as np
 
 # This all for 3D plots
 from mpl_toolkits.mplot3d import Axes3D
@@ -9,263 +11,155 @@ from matplotlib.patches import Circle, PathPatch
 from matplotlib.transforms import Affine2D
 import matplotlib.pyplot as plt
 
+# ROOT.EnableImplicitMT();
+
+
 # c in mm/ns
 c = 299.792458
 
 # calib_kaons data
-# file = TFile("/nfs/dust/ilc/user/dudarboh/final_files/calib_kaons.root", "READ")
-# tree = file.ana_tree
+# df = ROOT.RDataFrame("ana_tree", "/nfs/dust/ilc/user/dudarboh/final_files/calib_kaons.root")
 
 # 2f_Z_hadronic data
-tree = TChain("ana_tree")
-tree.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/*.root")
-
-def plot_event(ev):
-
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-    ax.grid(False)
-    colors = ["b", "g", "r", "c", "m", "y", "k"]
-    for idx, event in enumerate(tree):
-        if idx != ev:
-            continue
-        n_pfo = event.nGoodPFOs
-        print(n_pfo)
-        for pfo in range(n_pfo):
-            # Plot tracker hits
-            x = []
-            y = []
-            z = []
-            n_hits = event.nHitsTrack[pfo]
-            for i in range(n_hits):
-                x.append(event.xHit[pfo][i])
-                y.append(event.yHit[pfo][i])
-                z.append(event.zHit[pfo][i])
-
-            x = np.array(x)
-            y = np.array(y)
-            z = np.array(z)
-
-            ax.scatter3D(z, x, y, color=colors[pfo%len(colors)])
-            # Plot cluster
-            x = []
-            y = []
-            z = []
-            n_hits = event.nHitsCluster[pfo]
-            for i in range(n_hits):
-                x.append(event.xClusterHit[pfo][i])
-                y.append(event.yClusterHit[pfo][i])
-                z.append(event.zClusterHit[pfo][i])
-
-            x = np.array(x)
-            y = np.array(y)
-            z = np.array(z)
-
-            ax.scatter3D(z, x, y, color=colors[pfo%len(colors)], s=30, marker="s")
-
-
-    ax.set_xlabel("Z axis, [mm]")
-    ax.set_ylabel("X axis, [mm]")
-    ax.set_zlabel("Y axis, [mm]")
-
-    # ECAL
-    r = 1805.
-    h = 2350.
-
-    x=np.linspace(-r, r, 100)
-    z=np.linspace(-h, h, 100)
-    Xc, Zc=np.meshgrid(x, z)
-    Yc = np.sqrt(r**2-Xc**2)
-    # Draw parameters
-    rstride = 20
-    cstride = 10
-    ax.plot_surface(Zc, Xc, Yc, alpha=0.15, rstride=rstride, cstride=cstride, color="cyan")
-    ax.plot_surface(Zc, Xc, -Yc, alpha=0.15, rstride=rstride, cstride=cstride, color="cyan")
-    # Add endcaps
-    p1 = Circle((0, 0), r, alpha=0.15)
-    p2 = Circle((0, 0), r, alpha=0.15)
-    ax.add_patch(p1)
-    ax.add_patch(p2)
-    art3d.pathpatch_2d_to_3d(p1, z=h, zdir="x")
-    art3d.pathpatch_2d_to_3d(p2, z=-h, zdir="x")
-
-    plt.show()
-
-    input("wait")
-
-
-def plot_track(ev, track):
-    fig = plt.figure()
-    ax = plt.axes(projection='3d')
-    ax.grid(False)
-    colors = ["b", "g", "r", "c", "m", "y", "k"]
-    for idx, event in enumerate(tree):
-        if idx != ev:
-            continue
-        # plot track
-        n_pfo = event.nGoodPFOs
-        print(n_pfo)
-        pfo = track
-        x = []
-        y = []
-        z = []
-        n_hits = event.nHitsTrack[pfo]
-        for i in range(n_hits):
-            x.append(event.xHit[pfo][i])
-            y.append(event.yHit[pfo][i])
-            z.append(event.zHit[pfo][i])
-        x = np.array(x)
-        y = np.array(y)
-        z = np.array(z)
-        ax.scatter3D(z, x, y, color=colors[pfo%len(colors)])
-
-        x = []
-        y = []
-        z = []
-        # Plot shower
-        n_hits = event.nHitsCluster[pfo]
-        for i in range(n_hits):
-            x.append(event.xClusterHit[pfo][i])
-            y.append(event.yClusterHit[pfo][i])
-            z.append(event.zClusterHit[pfo][i])
-        x = np.array(x)
-        y = np.array(y)
-        z = np.array(z)
-        ax.scatter3D(z, x, y, color=colors[pfo%len(colors)], s=30, marker="s")
-
-
-        x_calo = event.xRefCalo[pfo]
-        y_calo = event.yRefCalo[pfo]
-        z_calo = event.zRefCalo[pfo]
-        ax.scatter3D(z_calo, x_calo, y_calo, color="red", s=130, marker="*")
-
-        x_last = event.xRefLast[pfo]
-        y_last = event.yRefLast[pfo]
-        z_last = event.zRefLast[pfo]
-        ax.scatter3D(z_last, x_lakst, y_last, color="yellow", s=130, marker="*")
-
-    ax.set_xlabel("Z axis, [mm]")
-    ax.set_ylabel("X axis, [mm]")
-    ax.set_zlabel("Y axis, [mm]")
-
-    # ECAL
-    r = 1805.
-    h = 2350.
-
-    x=np.linspace(-r, r, 100)
-    z=np.linspace(-h, h, 100)
-    Xc, Zc=np.meshgrid(x, z)
-    Yc = np.sqrt(r**2-Xc**2)
-    # Draw parameters
-    rstride = 20
-    cstride = 10
-    ax.plot_surface(Zc, Xc, Yc, alpha=0.15, rstride=rstride, cstride=cstride, color="cyan")
-    ax.plot_surface(Zc, Xc, -Yc, alpha=0.15, rstride=rstride, cstride=cstride, color="cyan")
-    # Add endcaps
-    p1 = Circle((0, 0), r, alpha=0.15)
-    p2 = Circle((0, 0), r, alpha=0.15)
-    ax.add_patch(p1)
-    ax.add_patch(p2)
-    art3d.pathpatch_2d_to_3d(p1, z=h, zdir="x")
-    art3d.pathpatch_2d_to_3d(p2, z=-h, zdir="x")
-
-    plt.show()
-
-    input("wait")
-
-
-def beta_p():
-    # canvas = TCanvas()
-    gStyle.SetPalette(1)
-    nBinsX = 100
-    nBinsY = 100
-    minBinX = 0.
-    maxBinX = 1. # log10(min/max momentum / GeV)
-    minBinY = .7
-    maxBinY = 1.1; # for TOF beta = v/c values from 0 to 1
-
-    histbinsX = []
-    histbinsY = []
-    for i in range(nBinsX + 1):
-        histbinsX.append(10**(minBinX + 1.*(maxBinX-minBinX)*i/nBinsX))
-    for i in range(nBinsY + 1):
-        histbinsY.append(minBinY + 1.*(maxBinY-minBinY)*i/nBinsY)
-
-    h1 = TH2F("h1", "title", nBinsX, np.array(histbinsX), nBinsY, np.array(histbinsY))
-    h1.SetTitle("Beta vs p plot; p, [GeV]; #beta")
-    beta = "length/(Min$(tHitCluster)*{})".format(c)
-    tree.Draw("{}:p>>h1".format(beta), "", "COLZ")
-    input("wait")
-
-
-def plot_histo():
-    canvas = TCanvas()
-    h1 = TH1F("h1", "Distance between last tracker hit and impact point in ECAL;d, [mm];N_{PFOs}", 600, 0, 400)
-    # var = "(zRefCalo-zRefLast)"
-
-    # length = "abs((phiCalo-phi)/omegaCalo)*sqrt(1. + tanLCalo*tanLCalo)"
-    # var = "{}/(Sum$(tHitCluster)/Length$(tHitCluster)*{})".format(length, c)
-
-    var = "sqrt((xRefCalo-xRefLast)*(xRefCalo-xRefLast) + (yRefCalo-yRefLast)*(yRefCalo-yRefLast) + (zRefCalo-zRefLast)*(zRefCalo-zRefLast))"
-
-    # var = "abs((phiCalo-phi)*(1./omegaCalo))*sqrt(1. + tanLCalo*tanLCalo)"
-
-    # var = "dToLineHitCluster"
-
-    tree.Draw("{}>>h1".format(var))
-    input("wait")
-
+df = ROOT.RDataFrame("ana_tree", "/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic_new/*.root")
 
 def tof_analysis():
-    canvas = TCanvas()
-    h1 = TH1F("h1", "TOF fit", 400, 0., 1.)
+    # Include all TOF algorithms written on c++, Hit struct which helps and speed of light const
+    ROOT.gInterpreter.Declare('#include "analysis.h"')
+
+    filtered_df = df.Filter("nCalHits > 0 && abs(d0) < 10 && abs(z0) < 20 && p < 2.5")\
+    .Define("layerNewCalHit", "layerCalHit[layerCalHit < 10] ").Filter("layerNewCalHit.size() > 0")\
+    .Define("tNewCalHit", "tCalHit[layerCalHit < 10]")\
+    .Define("dToRefPointNewCalHit", "dToRefPointCalHit[layerCalHit < 10]")\
+    .Define("dToLineNewCalHit", "dToLineCalHit[layerCalHit < 10]")\
+    .Define("length_IP", "abs((-phiCalState+phi)/omega)*sqrt(1. + tanL*tanL)")
+
+    df_closest = filtered_df.Define("tof", "tof_closest(tNewCalHit, dToRefPointNewCalHit)")\
+    .Define("beta", "length/(tof * c)")\
+    .Define("mass", "p / beta * sqrt(1. - beta * beta) * 1000")
+
+    df_avg = filtered_df.Define("tof", "tof_avg(tNewCalHit, dToRefPointNewCalHit, dToLineNewCalHit, layerNewCalHit)")\
+    .Define("beta", "length/(tof * c)")\
+    .Define("mass", "p / beta * sqrt(1. - beta * beta) * 1000")
+
+    df_fit = filtered_df.Define("tof", "tof_fit(tNewCalHit, dToRefPointNewCalHit, dToLineNewCalHit, layerNewCalHit)")\
+    .Define("beta", "length/(tof * c)")\
+    .Define("mass", "p / beta * sqrt(1. - beta * beta) * 1000")
+
+    h1 = df_fit.Histo1D(("h1","TOF fit", 1000, 0., 1000.), "mass")
     h1.SetLineColor(1)
-    h2 = TH1F("h2", "TOF avg", 400, 0., 1.)
+    h2 = df_avg.Histo1D(("h2","TOF avg", 1000, 0., 1000.), "mass")
     h2.SetLineColor(2)
-    h3 = TH1F("h3", "TOF closest", 400, 0., 1.)
+    h3 = df_closest.Histo1D(("h3","TOF closest", 1000, 0., 1000.), "mass")
     h3.SetLineColor(3)
-    hs = THStack()
-    hs.Add(h1)
-    hs.Add(h2)
-    hs.Add(h3)
 
-    n_events_total = tree.GetEntries()
-    for idx, event in enumerate(tree):
-        if idx % 200 == 0:
-            print(idx, "event from", n_events_total)
-        # if idx == 10000:
-        #     break
-
-        n_pfo = event.nGoodPFOs
-        for pfo in range(n_pfo):
-            p = event.p[pfo]
-            l_trk = event.length[pfo]
-            hits = []
-            for (t, r, d, layer) in zip(event.tHitCluster[pfo], event.dToRefPointHitCluster[pfo], event.dToLineHitCluster[pfo], event.layerHitCluster[pfo]):
-                if layer > 9:
-                    continue
-                hits.append({"t": t, "r" : r, "d" : d, "layer" : layer})
-            if hits == []:
-                continue
-
-            mass_closest = algo_closest(p, l_trk, hits)
-            mass_avg = algo_avg(p, l_trk, hits)
-            mass_fit = algo_fit(p, l_trk, hits)
-            h1.Fill(mass_fit)
-            h2.Fill(mass_avg)
-            h3.Fill(mass_closest)
+    canvas = ROOT.TCanvas()
+    hs = ROOT.THStack()
+    hs.Add(h1.GetPtr())
+    hs.Add(h2.GetPtr())
+    hs.Add(h3.GetPtr())
     hs.Draw("nostack")
+    hs.SetTitle("TOF estimators (#Omega_{IP}, #lambda_{IP});mass, [MeV];N_{PFO}")
     canvas.BuildLegend()
+    canvas.SetGridx()
+    canvas.SetGridy()
+    # Kaon line
+    line1 = ROOT.TLine(493.677, 0., 493.677, 2500.)
+    line1.SetLineWidth(3)
+    line1.SetLineColor(6)
+    line1.Draw()
+    # Pion line
+    line2 = ROOT.TLine(139.570, 0., 139.570, 6800.)
+    line2.SetLineWidth(3)
+    line2.SetLineColor(6)
+    line2.Draw()
+
+    # Proton line
+    line3 = ROOT.TLine(938.272, 0., 938.272, 2000.)
+    line3.SetLineWidth(3)
+    line3.SetLineColor(6)
+    line3.Draw()
+
     canvas.Update()
     input("wait")
 
 
+def test_bias():
+    #Fit algo
+    canvas = ROOT.TCanvas()
+    x = np.array([139.570183535, 493.677, 938.2720881629])
+    mg = ROOT.TMultiGraph()
+
+    y = (np.array([113.066, 483.685, 9.33090e+02]) - x)
+    gr_fit = ROOT.TGraphErrors(3, x, y)
+    gr_fit.SetTitle("TOF Fit (IP)")
+    gr_fit.SetMarkerColor(1)
+    gr_fit.SetLineColor(1)
+    mg.Add(gr_fit)
+
+    # Avg algo
+    y = (np.array([1.18410e+02, 4.90807e+02, 9.44576e+02]) - x)
+    gr_avg = ROOT.TGraphErrors(3, x, y)
+    gr_avg.SetTitle("TOF avg (IP)")
+    gr_avg.SetMarkerColor(2)
+    gr_avg.SetLineColor(2)
+    mg.Add(gr_avg)
+
+    # Closest algo
+    y = (np.array([114.629, 4.85649e+02, 9.36287e+02]) - x)
+    gr_closest = ROOT.TGraphErrors(3, x, y)
+    gr_closest.SetTitle("TOF closest (IP)")
+    gr_closest.SetMarkerColor(3)
+    gr_closest.SetLineColor(3)
+    mg.Add(gr_closest)
+
+    # Fit
+    y = (np.array([1.44045e+02, 4.96367e+02, 9.42326e+02]) - x)
+    gr_fit2 = ROOT.TGraphErrors(3, x, y)
+    gr_fit2.SetTitle("TOF Fit (Calo)")
+    gr_fit2.SetMarkerStyle(22)
+    gr_fit2.SetMarkerColor(1)
+    gr_fit2.SetLineColor(1)
+    gr_fit2.SetLineStyle(10)
+    mg.Add(gr_fit2)
+
+    # Avg
+    y = (np.array([1.48365e+02, 5.03939e+02, 9.54064e+02]) - x)
+    gr_avg2 = ROOT.TGraphErrors(3, x, y)
+    gr_avg2.SetTitle("TOF avg (Calo)")
+    gr_avg2.SetMarkerStyle(22)
+    gr_avg2.SetMarkerColor(2)
+    gr_avg2.SetLineColor(2)
+    gr_avg2.SetLineStyle(10)
+    mg.Add(gr_avg2)
+
+    # Closest
+    y = (np.array([1.45594e+02, 4.98747e+02, 9.45545e+02]) - x)
+    gr_closest2 = ROOT.TGraphErrors(3, x, y)
+    gr_closest2.SetTitle("TOF closest (Calo)")
+    gr_closest2.SetMarkerStyle(22)
+    gr_closest2.SetMarkerColor(3)
+    gr_closest2.SetLineColor(3)
+    gr_closest2.SetLineStyle(10)
+    mg.Add(gr_closest2)
+
+
+    mg.Draw("APL")
+    canvas.BuildLegend()
+    mg.SetTitle("Bias vs mass;m_{true}, [MeV]; m_{reco}-m_{true}, [MeV]")
+    canvas.Update()
+    input("wait")
+
+
+pr = cProfile.Profile()
+pr.enable()
+
+# tof_analysis()
+test_bias()
 
 
 
-# plot_event(2)
-# plot_track(0, 1)
-# beta_p()
-# plot_mass()
-tof_analysis()
-# plot_histo()
+
+pr.disable()
+ps = pstats.Stats(pr).sort_stats(SortKey.CUMULATIVE)
+ps.print_stats()

@@ -64,7 +64,7 @@ protected:
     string _outputFileName;
 
     //root file data
-    float _p;
+    double _p;
     float _charge;
 
     float _d0;
@@ -75,7 +75,15 @@ protected:
     float _chi2;
     int _ndf;
     float _dEdX;
-    float _length;
+
+    float _d0FirstState;
+    float _phiFirstState;
+    float _omegaFirstState;
+    float _z0FirstState;
+    float _tanLFirstState;
+    float _xRefFirstState;
+    float _yRefFirstState;
+    float _zRefFirstState;
 
     float _d0LastState;
     float _phiLastState;
@@ -95,12 +103,6 @@ protected:
     float _yRefCalState;
     float _zRefCalState;
 
-    float _xCluster;
-    float _yCluster;
-    float _zCluster;
-    float _phiCluster;
-    float _thetaCluster;
-
     int _nTrHits;
     int _nTPCHits;
     vector <double> _xTrHit;
@@ -115,8 +117,8 @@ protected:
     vector <float> _zCalHit;
     vector <float> _tCalHit;
     vector <int> _layerCalHit;
-    vector <float> _dToLineCalHit;
-    vector <float> _dToRefPointCalHit;
+    vector <double> _dToLineCalHit;
+    vector <double> _dToRefPointCalHit;
 
     // lcio//DD4HEP specifics
     const int _TPCindex;
