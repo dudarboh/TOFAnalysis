@@ -16,6 +16,8 @@
 
 #include "UTIL/ILDConf.h"
 #include <UTIL/PIDHandler.h>
+#include <HelixClass.h>
+
 #include <chrono>
 #include <iostream>
 #include "lcio.h"
@@ -76,6 +78,7 @@ protected:
     int _ndf;
     float _dEdX;
 
+    float _pFirstState;
     float _d0FirstState;
     float _phiFirstState;
     float _omegaFirstState;
@@ -85,6 +88,7 @@ protected:
     float _yRefFirstState;
     float _zRefFirstState;
 
+    float _pLastState;
     float _d0LastState;
     float _phiLastState;
     float _omegaLastState;
@@ -94,6 +98,7 @@ protected:
     float _yRefLastState;
     float _zRefLastState;
 
+    float _pCalState;
     float _d0CalState;
     float _phiCalState;
     float _omegaCalState;

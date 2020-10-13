@@ -11,55 +11,74 @@ from matplotlib.patches import Circle, PathPatch
 from matplotlib.transforms import Affine2D
 import matplotlib.pyplot as plt
 
-# ROOT.EnableImplicitMT();
-
-
-# c in mm/ns
-c = 299.792458
-
 # calib_kaons data
 # df = ROOT.RDataFrame("ana_tree", "/nfs/dust/ilc/user/dudarboh/final_files/calib_kaons.root")
 
 # 2f_Z_hadronic data
-df = ROOT.RDataFrame("ana_tree", "/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic_new/*.root")
+df = ROOT.RDataFrame("ana_tree", "/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result[1-3].root")
 
 def tof_analysis():
     # Include all TOF algorithms written on c++, Hit struct which helps and speed of light const
     ROOT.gInterpreter.Declare('#include "analysis.h"')
 
-    filtered_df = df.Filter("nCalHits > 0 && abs(d0) < 10 && abs(z0) < 20 && p < 2.5")\
-    .Define("layerNewCalHit", "layerCalHit[layerCalHit < 10] ").Filter("layerNewCalHit.size() > 0")\
-    .Define("tNewCalHit", "tCalHit[layerCalHit < 10]")\
-    .Define("dToRefPointNewCalHit", "dToRefPointCalHit[layerCalHit < 10]")\
-    .Define("dToLineNewCalHit", "dToLineCalHit[layerCalHit < 10]")\
-    .Define("length_IP", "abs((-phiCalState+phi)/omega)*sqrt(1. + tanL*tanL)")
 
-    df_closest = filtered_df.Define("tof", "tof_closest(tNewCalHit, dToRefPointNewCalHit)")\
-    .Define("beta", "length/(tof * c)")\
-    .Define("mass", "p / beta * sqrt(1. - beta * beta) * 1000")
+    # test =  df.Filter("nCalHits > 0 && abs(d0) < 10 && abs(z0) < 20 && p < 2.5").Define("red_chi2", "chi2/ndf").Histo1D(("test","test", 500, 0., 5.), "red_chi2")
+    # test.Draw()
+    # input("wait")
 
-    df_avg = filtered_df.Define("tof", "tof_avg(tNewCalHit, dToRefPointNewCalHit, dToLineNewCalHit, layerNewCalHit)")\
-    .Define("beta", "length/(tof * c)")\
-    .Define("mass", "p / beta * sqrt(1. - beta * beta) * 1000")
+    # All basic background rejecting cuts
+    df1 = df.Filter("nCalHits > 0 && abs(d0) < 10 && abs(z0) < 20 && p < 2.5 && chi2/ndf < 1.01")\
+    .Define("layer_cut", "layerCalHit < 10")\
+    .Define("l", "layerCalHit[layer_cut] ")\
+    .Filter("l.size() > 0")\
+    .Define("t", "tCalHit[layer_cut]")\
+    .Define("r", "dToRefPointCalHit[layer_cut]")\
+    .Define("d", "dToLineCalHit[layer_cut]")\
+    .Define("tof", "tof_fit(t, r, d, l, 0)")\
+    .Define("betaCalo", "tof_fit(t, r, d, l, 1)")\
+    .Define("lenIP", "abs((phi-phiCalState)/omega)*sqrt(1. + tanL*tanL)")\
+    .Define("lenCalo", "abs((phi-phiCalState)/omegaCalState)*sqrt(1. + tanLCalState*tanLCalState)")\
+    .Define("lenAVG", "(lenIP+lenCalo)/2.")\
 
-    df_fit = filtered_df.Define("tof", "tof_fit(tNewCalHit, dToRefPointNewCalHit, dToLineNewCalHit, layerNewCalHit)")\
-    .Define("beta", "length/(tof * c)")\
-    .Define("mass", "p / beta * sqrt(1. - beta * beta) * 1000")
+    h1 = df1.Define("beta", "lenCalo/(tof * c)")\
+    .Define("mass", "p / beta * sqrt(1. - beta * beta) * 1000")\
+    .Histo1D(("h1","CalState Length", 2000, 0., 1000.), "mass")
 
-    h1 = df_fit.Histo1D(("h1","TOF fit", 1000, 0., 1000.), "mass")
-    h1.SetLineColor(1)
-    h2 = df_avg.Histo1D(("h2","TOF avg", 1000, 0., 1000.), "mass")
-    h2.SetLineColor(2)
-    h3 = df_closest.Histo1D(("h3","TOF closest", 1000, 0., 1000.), "mass")
-    h3.SetLineColor(3)
+    h2 = df1.Define("beta", "lenAVG/(tof * c)")\
+    .Define("mass", "p / beta * sqrt(1. - beta * beta) * 1000")\
+    .Histo1D(("h2","Avg len", 2000, 0., 1000.), "mass")
+
+    h3 = df1.Define("beta", "lenCalo/(tof * c)").Define("betaIP", "lenIP/(tof * c)")\
+    .Define("mass", " (p/betaIP -dEdX*lenCalo) * sqrt(1. - beta * beta) * 1000")\
+    .Histo1D(("h3"," p/betaIP", 2000, 0., 1000.), "mass")
+
+    h4 = df1.Define("beta", "lenCalo/(tof * c)").Define("betaIP", "lenIP/(tof * c)")\
+    .Define("mass", " (p/betaIP -dEdX*lenIP) * sqrt(1. - beta * beta) * 1000")\
+    .Histo1D(("h4"," p/betaIP len IP", 2000, 0., 1000.), "mass")
+
+
+    # h1.Draw()
+    # input("wait")
+    # h2.Draw()
+    # input("wait")
+    # h3.Draw()
+    # input("wait")
+    # h4.Draw()
+    # input("wait")
+
+    histos = [h1, h2, h3, h4]
+
 
     canvas = ROOT.TCanvas()
     hs = ROOT.THStack()
-    hs.Add(h1.GetPtr())
-    hs.Add(h2.GetPtr())
-    hs.Add(h3.GetPtr())
+
+    for i, h in enumerate(histos):
+        hs.Add(h.GetPtr())
+        h.SetLineColor(i+1)
+
     hs.Draw("nostack")
-    hs.SetTitle("TOF estimators (#Omega_{IP}, #lambda_{IP});mass, [MeV];N_{PFO}")
+
+    hs.SetTitle("Different lengths;mass, [MeV];N_{PFO}")
     canvas.BuildLegend()
     canvas.SetGridx()
     canvas.SetGridy()
@@ -85,36 +104,21 @@ def tof_analysis():
 
 
 def test_bias():
-    #Fit algo
     canvas = ROOT.TCanvas()
     x = np.array([139.570183535, 493.677, 938.2720881629])
     mg = ROOT.TMultiGraph()
 
-    y = (np.array([113.066, 483.685, 9.33090e+02]) - x)
-    gr_fit = ROOT.TGraphErrors(3, x, y)
-    gr_fit.SetTitle("TOF Fit (IP)")
-    gr_fit.SetMarkerColor(1)
-    gr_fit.SetLineColor(1)
-    mg.Add(gr_fit)
-
-    # Avg algo
-    y = (np.array([1.18410e+02, 4.90807e+02, 9.44576e+02]) - x)
-    gr_avg = ROOT.TGraphErrors(3, x, y)
-    gr_avg.SetTitle("TOF avg (IP)")
-    gr_avg.SetMarkerColor(2)
-    gr_avg.SetLineColor(2)
-    mg.Add(gr_avg)
-
-    # Closest algo
-    y = (np.array([114.629, 4.85649e+02, 9.36287e+02]) - x)
-    gr_closest = ROOT.TGraphErrors(3, x, y)
-    gr_closest.SetTitle("TOF closest (IP)")
-    gr_closest.SetMarkerColor(3)
-    gr_closest.SetLineColor(3)
-    mg.Add(gr_closest)
+    # IP Fit
+    # y = (np.array([113.066, 483.685, 9.33090e+02]) - x)
+    # IP Avg
+    # y = (np.array([1.18410e+02, 4.90807e+02, 9.44576e+02]) - x)
+    # IP Closest
+    # y = (np.array([114.629, 4.85649e+02, 9.36287e+02]) - x)
 
     # Fit
-    y = (np.array([1.44045e+02, 4.96367e+02, 9.42326e+02]) - x)
+    y1_prev = (np.array([1.44045e+02, 4.96367e+02, 9.42326e+02]) - x)
+    y1 = (np.array([1.45008e+02, 4.96367e+02, 9.42326e+02]) - x)
+
     gr_fit2 = ROOT.TGraphErrors(3, x, y)
     gr_fit2.SetTitle("TOF Fit (Calo)")
     gr_fit2.SetMarkerStyle(22)
@@ -154,8 +158,8 @@ def test_bias():
 pr = cProfile.Profile()
 pr.enable()
 
-# tof_analysis()
-test_bias()
+tof_analysis()
+# test_bias()
 
 
 

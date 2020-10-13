@@ -34,6 +34,7 @@ void TOFAnalysis::init(){
     _tree->Branch("dEdX", &_dEdX, "dEdX/F");
 
     //Track states
+    _tree->Branch("pFirstState", &_pFirstState, "pFirstState/F");
     _tree->Branch("d0FirstState", &_d0FirstState, "d0FirstState/F");
     _tree->Branch("phiFirstState", &_phiFirstState, "phiFirstState/F");
     _tree->Branch("omegaFirstState", &_omegaFirstState, "omegaFirstState/F");
@@ -43,6 +44,7 @@ void TOFAnalysis::init(){
     _tree->Branch("yRefFirstState", &_yRefFirstState, "yRefFirstState/F");
     _tree->Branch("zRefFirstState", &_zRefFirstState, "zRefFirstState/F");
 
+    _tree->Branch("pLastState", &_pLastState, "pLastState/F");
     _tree->Branch("d0LastState", &_d0LastState, "d0LastState/F");
     _tree->Branch("phiLastState", &_phiLastState, "phiLastState/F");
     _tree->Branch("omegaLastState", &_omegaLastState, "omegaLastState/F");
@@ -52,6 +54,7 @@ void TOFAnalysis::init(){
     _tree->Branch("yRefLastState", &_yRefLastState, "yRefLastState/F");
     _tree->Branch("zRefLastState", &_zRefLastState, "zRefLastState/F");
 
+    _tree->Branch("pCalState", &_pCalState, "pCalState/F");
     _tree->Branch("d0CalState", &_d0CalState, "d0CalState/F");
     _tree->Branch("phiCalState", &_phiCalState, "phiCalState/F");
     _tree->Branch("omegaCalState", &_omegaCalState, "omegaCalState/F");
@@ -104,6 +107,7 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         const double* mom = pfo->getMomentum();
         _p = sqrt(mom[0]*mom[0] + mom[1]*mom[1] + mom[2]*mom[2]);
 
+        //Track parameters
         const Track* track = pfo->getTracks()[0];
         _d0 = track->getD0();
         _phi = track->getPhi();
@@ -115,39 +119,61 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         _dEdX = track->getdEdx();
         _nTPCHits = track->getSubdetectorHitNumbers()[_TPCindex];
 
+        //First hit state
         const TrackState* trackFirstState = track->getTrackState(TrackState::AtFirstHit);
         _d0FirstState = trackFirstState->getD0();
         _phiFirstState = trackFirstState->getPhi();
         _omegaFirstState = trackFirstState->getOmega();
         _z0FirstState = trackFirstState->getZ0();
         _tanLFirstState = trackFirstState->getTanLambda();
+
+        HelixClass helixFirst;
+        helixFirst.Initialize_Canonical(_phiFirstState, _d0FirstState, _z0FirstState, _omegaFirstState, _tanLFirstState, 3.5);
+        float* momHelixFirst = helixFirst.getMomentum();
+        _pFirstState = sqrt(momHelixFirst[0]*momHelixFirst[0] + momHelixFirst[1]*momHelixFirst[1] + momHelixFirst[2]*momHelixFirst[2]);
+
         const float* firstPos = trackFirstState->getReferencePoint();
         _xRefFirstState = firstPos[0];
         _yRefFirstState = firstPos[1];
         _zRefFirstState = firstPos[2];
 
+        //Last hit state
         const TrackState* trackLastState = track->getTrackState(TrackState::AtLastHit);
         _d0LastState = trackLastState->getD0();
         _phiLastState = trackLastState->getPhi();
         _omegaLastState = trackLastState->getOmega();
         _z0LastState = trackLastState->getZ0();
         _tanLLastState = trackLastState->getTanLambda();
+
+        HelixClass helixLast;
+        helixLast.Initialize_Canonical(_phiLastState, _d0LastState, _z0LastState, _omegaLastState, _tanLLastState, 3.5);
+        float* momHelixLast = helixLast.getMomentum();
+        _pLastState = sqrt(momHelixLast[0]*momHelixLast[0] + momHelixLast[1]*momHelixLast[1] + momHelixLast[2]*momHelixLast[2]);
+
         const float* lastPos = trackLastState->getReferencePoint();
         _xRefLastState = lastPos[0];
         _yRefLastState = lastPos[1];
         _zRefLastState = lastPos[2];
 
+        //Calo hit state
         const TrackState* trackCalState = track->getTrackState(TrackState::AtCalorimeter);
         _d0CalState = trackCalState->getD0();
         _phiCalState = trackCalState->getPhi();
         _omegaCalState = trackCalState->getOmega();
         _z0CalState = trackCalState->getZ0();
         _tanLCalState = trackCalState->getTanLambda();
+
+        HelixClass helixCal;
+        helixCal.Initialize_Canonical(_phiCalState, _d0CalState, _z0CalState, _omegaCalState, _tanLCalState, 3.5);
+        float* momHelixCal = helixCal.getMomentum();
+        _pCalState = sqrt(momHelixCal[0]*momHelixCal[0] + momHelixCal[1]*momHelixCal[1] + momHelixCal[2]*momHelixCal[2]);
+
         const float* calPos = trackCalState->getReferencePoint();
         _xRefCalState = calPos[0];
         _yRefCalState = calPos[1];
         _zRefCalState = calPos[2];
 
+        //Track hits
         const TrackerHitVec& trHits = track->getTrackerHits();
         _nTrHits = trHits.size();
         for (int i = 0; i < _nTrHits; ++i) {

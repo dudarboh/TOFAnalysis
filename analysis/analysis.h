@@ -10,6 +10,29 @@ struct Hit{
         t(t_hit), r(r_hit), d(d_hit), layer(layer_hit){}
 };
 
+double line(double x, double x1, double x2, double y1, double y2){
+    return y1 + (y2-y1)/(x2-x1) * (x - x1);
+}
+
+double track_len(double phi1, double phi2, double omega1, double omega2, double lambda1, double lambda2){
+    int nPoints = 10000;
+    double h = abs(phi2-phi1)/nPoints;
+    // Calculate func values at points
+    double func[nPoints+1];
+    for (int i = 0; i < nPoints+1; ++i) {
+        double phi = phi1 + 1.*i/nPoints*(phi2-phi1);
+        double omega = line(phi, phi1, phi2, omega1, omega2);
+        double lambda = line(phi, phi1, phi2, lambda1, lambda2);
+        func[i] = abs(1./omega) * sqrt(1. + lambda*lambda);
+    }
+
+    // Calculate integral by Simpsons formula
+    double result = 0.;
+    for (int i = 1; i < nPoints; i+=2) result += func[i-1] + 4*func[i] + func[i+1];
+    return h/3. * result;
+}
+
+
 double tof_closest(const RVec<double> &t_hit, const RVec<double> &r_hit){
     int min_idx = min_element(r_hit.begin(), r_hit.end()) - r_hit.begin();
     double tof = t_hit[min_idx] - r_hit[min_idx]/c;
@@ -48,7 +71,7 @@ double tof_avg(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<
     return tof;
 }
 
-double tof_fit(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<double> &d_hit, const RVec<int> &layer_hit){
+double tof_fit(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<double> &d_hit, const RVec<int> &layer_hit, int param){
     // Get Franks layer hits
     int n_hits = t_hit.size();
     map <int, vector <Hit> > layer_hits;
@@ -77,7 +100,7 @@ double tof_fit(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<
         r[i] = selected_hits[i].r;
         t[i] = selected_hits[i].t;
         r_err[i] = 0.;
-        t_err[i] = 10.;
+        t_err[i] = 0.05;
     }
     TGraphErrors gr(n_sel_hits, r, t, r_err, t_err);
 
