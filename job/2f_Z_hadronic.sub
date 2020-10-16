@@ -13,4 +13,4 @@ request_memory = 500MB
 request_disk = 1500MB
 Requirements = OpSysAndVer == "CentOS7"
 
-queue file from /afs/desy.de/user/d/dudarboh/ILCSoft/TOFAnalysis/job/2f_Z_hadronic.txt
+queue file from /afs/desy.de/user/d/dudarboh/ILCSoft/TOFAnalysis/job/2f_Z_hadronic_small.txt

@@ -24,7 +24,10 @@ cmake_policy(VERSION 3.12)
 project(TOFAnalysis VERSION 1.0)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
-add_library(${PROJECT_NAME} SHARED ${PROJECT_SOURCE_DIR}/src/TOFAnalysis.cpp)
+add_library(${PROJECT_NAME} SHARED  ${PROJECT_SOURCE_DIR}/src/ExtractTrackerHits.cpp
+                                    ${PROJECT_SOURCE_DIR}/src/ExtractCalorimeterHits.cpp
+                                    ${PROJECT_SOURCE_DIR}/src/ExtractTrackParams.cpp)
+
 
 ### DEPENDENCIES ###
 include($ENV{ILCSOFT}/ILCSoft.cmake)
