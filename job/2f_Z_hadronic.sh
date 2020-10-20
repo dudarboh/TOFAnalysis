@@ -1,9 +1,9 @@
 #!/bin/bash
 
-### source /cvmfs/ilc.desy.de/sw/x86_64_gcc82_centos7/v02-02/init_ilcsoft.sh
-### MARLIN_TOFEstimator="/afs/desy.de/user/d/dudarboh/ILCSoft/MarlinReco/TimeOfFlight/lib/libTOFEstimator.so"
-### MARLIN_TOFAnalysis="/afs/desy.de/user/d/dudarboh/ILCSoft/TOFAnalysis/lib/libTOFAnalysis.so"
-### export MARLIN_DLL=$MARLIN_DLL:$MARLIN_TOFEstimator:$MARLIN_TOFAnalysis
+source /cvmfs/ilc.desy.de/sw/x86_64_gcc82_centos7/v02-02/init_ilcsoft.sh
+MARLIN_TOFEstimator="/afs/desy.de/user/d/dudarboh/ILCSoft/MarlinReco/TimeOfFlight/lib/libTOFEstimator.so"
+MARLIN_TOFAnalysis="/afs/desy.de/user/d/dudarboh/ILCSoft/TOFAnalysis/lib/libTOFAnalysis.so"
+export MARLIN_DLL=$MARLIN_DLL:$MARLIN_TOFEstimator:$MARLIN_TOFAnalysis
 
 rm -rf job${2}
 mkdir job${2}

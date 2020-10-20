@@ -1,5 +1,9 @@
 using namespace std;
 using namespace ROOT::VecOps;
+
+#include "DDRec/Vector3D.h"
+using dd4hep::rec::Vector3D;
+
 double c = 299.792458;
 struct Hit{
     double t;
@@ -10,6 +14,8 @@ struct Hit{
         t(t_hit), r(r_hit), d(d_hit), layer(layer_hit){}
 };
 
+
+// Almost obsolete methods
 double line(double x, double x1, double x2, double y1, double y2){
     return y1 + (y2-y1)/(x2-x1) * (x - x1);
 }
@@ -32,7 +38,6 @@ double track_len(double phi1, double phi2, double omega1, double omega2, double 
     return h/3. * result;
 }
 
-
 double tof_closest(const RVec<double> &t_hit, const RVec<double> &r_hit){
     int min_idx = min_element(r_hit.begin(), r_hit.end()) - r_hit.begin();
     double tof = t_hit[min_idx] - r_hit[min_idx]/c;
@@ -46,7 +51,6 @@ double tof_fastest(const RVec<double> &t_hit, const RVec<double> &r_hit){
     if (tof <= 0.) return 0.;
     return tof;
 }
-
 
 // Franks Average
 double tof_avg(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<double> &d_hit, const RVec<int> &layer_hit){
@@ -71,7 +75,44 @@ double tof_avg(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<
     return tof;
 }
 
-double tof_fit(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<double> &d_hit, const RVec<int> &layer_hit, int param){
+
+RVec <double> dToLine(const RVec <float>& x, const RVec <float>& y, const RVec <float>& z,
+                     const float& xRef, const float& yRef, const float& zRef,
+                     const float& phi, const float& tanL){
+    vector <double> distance;
+
+    float posRef[3] = {xRef, yRef, zRef};
+    Vector3D refPoint(posRef);
+    Vector3D unitDir(1., phi, atan(1./tanL), Vector3D::spherical);
+
+    for(int i = 0; i < x.size(); ++i){
+        float pos[3] = {x[i], y[i], z[i]};
+        Vector3D caloHit(pos);
+        double d = (caloHit - refPoint).cross(unitDir).r();
+        distance.push_back(d);
+    }
+    return distance;
+}
+
+
+RVec <double> dToRef(const RVec <float>& x, const RVec <float>& y, const RVec <float>& z,
+                     const float& xRef, const float& yRef, const float& zRef){
+    vector <double> distance;
+
+    float posRef[3] = {xRef, yRef, zRef};
+    Vector3D refPoint(posRef);
+
+    for(int i = 0; i < x.size(); ++i){
+        float pos[3] = {x[i], y[i], z[i]};
+        Vector3D caloHit(pos);
+        double d = (caloHit - refPoint).r();
+        distance.push_back(d);
+    }
+    return distance;
+}
+
+
+double tof_fit(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<double> &d_hit, const RVec<int> &layer_hit){
     // Get Franks layer hits
     int n_hits = t_hit.size();
     map <int, vector <Hit> > layer_hits;

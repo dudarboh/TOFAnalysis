@@ -15,142 +15,169 @@ import matplotlib.pyplot as plt
 # df = ROOT.RDataFrame("ana_tree", "/nfs/dust/ilc/user/dudarboh/final_files/calib_kaons.root")
 
 # 2f_Z_hadronic data
-df = ROOT.RDataFrame("ana_tree", "/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result[1-3].root")
+ch = ROOT.TChain("TrackerHits")
+ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
+
+ch1 = ROOT.TChain("ECALHits")
+ch1.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
+
+ch2 = ROOT.TChain("PionTrackParams")
+ch2.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
+
+ch3 = ROOT.TChain("KaonTrackParams")
+ch3.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
+
+ch4 = ROOT.TChain("ProtonTrackParams")
+ch4.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
+
+
+ch.AddFriend(ch1, "cal")
+ch.AddFriend(ch2, "piFit")
+ch.AddFriend(ch3, "kFit")
+ch.AddFriend(ch4, "pFit")
+
+d = ROOT.RDataFrame(ch)
 
 def tof_analysis():
-    # Include all TOF algorithms written on c++, Hit struct which helps and speed of light const
     ROOT.gInterpreter.Declare('#include "analysis.h"')
 
+    c = ROOT.TCanvas()
+    # Good PFO cuts
+    d1 = d.Filter("cal.nHits > 0")
 
-    # test =  df.Filter("nCalHits > 0 && abs(d0) < 10 && abs(z0) < 20 && p < 2.5").Define("red_chi2", "chi2/ndf").Histo1D(("test","test", 500, 0., 5.), "red_chi2")
-    # test.Draw()
-    # input("wait")
+    # Cut on calorimeter layer and time
+    d2 = d1.Define("caloHitCut", "cal.layer < 10 && cal.t > 1.e-3")\
+    .Define("layerCal", "cal.layer[caloHitCut]").Filter("cal.layer.size() > 0")\
+    .Define("xCal", "cal.x[caloHitCut]")\
+    .Define("yCal", "cal.y[caloHitCut]")\
+    .Define("zCal", "cal.z[caloHitCut]")\
+    .Define("tCal", "cal.t[caloHitCut]")
+    # Define calorimeter hit parameters
+    # d3 = d2.Define("dToLine", "dToLine(xCal, yCal, zCal, pFit.xRefCalState, pFit.yRefCalState, pFit.zRefCalState, pFit.phiCalState, pFit.tanLCalState)")\
+    # .Define("dToRef", "dToRef(xCal, yCal, zCal, pFit.xRefCalState, pFit.yRefCalState, pFit.zRefCalState)")\
+    # .Define("tof", "tof_fit(tCal, dToRef, dToLine, layerCal)")\
+    # .Define("length", "abs((pFit.phi-pFit.phiCalState)/pFit.omegaCalState)*sqrt(1. + pFit.tanLCalState*pFit.tanLCalState)")\
+    # .Define("beta", "length/(tof * c)")\
+    #
+    # h2 = d3.Define("mass", "pFit.pCalState / beta * sqrt(1. - beta * beta) * 1000")\
+    # .Histo1D(("h2","Calo momentum", 2000, 0., 1000.), "mass")
 
-    # All basic background rejecting cuts
-    df1 = df.Filter("nCalHits > 0 && abs(d0) < 10 && abs(z0) < 20 && p < 2.5 && chi2/ndf < 1.01")\
-    .Define("layer_cut", "layerCalHit < 10")\
-    .Define("l", "layerCalHit[layer_cut] ")\
-    .Filter("l.size() > 0")\
-    .Define("t", "tCalHit[layer_cut]")\
-    .Define("r", "dToRefPointCalHit[layer_cut]")\
-    .Define("d", "dToLineCalHit[layer_cut]")\
-    .Define("tof", "tof_fit(t, r, d, l, 0)")\
-    .Define("betaCalo", "tof_fit(t, r, d, l, 1)")\
-    .Define("lenIP", "abs((phi-phiCalState)/omega)*sqrt(1. + tanL*tanL)")\
-    .Define("lenCalo", "abs((phi-phiCalState)/omegaCalState)*sqrt(1. + tanLCalState*tanLCalState)")\
-    .Define("lenAVG", "(lenIP+lenCalo)/2.")\
+    h1 = d2.Define("diff", "piFit.tanL - piFit.tanLFirstHit")\
+    .Histo1D(("h1","tan(#lambda_{IP}) - tan(#lambda_{first})", 2000, -0.001, 0.001), "diff")
 
-    h1 = df1.Define("beta", "lenCalo/(tof * c)")\
-    .Define("mass", "p / beta * sqrt(1. - beta * beta) * 1000")\
-    .Histo1D(("h1","CalState Length", 2000, 0., 1000.), "mass")
+    h1.Draw()
+    # h2.Draw("same")
+    # h2.SetLineColor(2)
 
-    h2 = df1.Define("beta", "lenAVG/(tof * c)")\
-    .Define("mass", "p / beta * sqrt(1. - beta * beta) * 1000")\
-    .Histo1D(("h2","Avg len", 2000, 0., 1000.), "mass")
-
-    h3 = df1.Define("beta", "lenCalo/(tof * c)").Define("betaIP", "lenIP/(tof * c)")\
-    .Define("mass", " (p/betaIP -dEdX*lenCalo) * sqrt(1. - beta * beta) * 1000")\
-    .Histo1D(("h3"," p/betaIP", 2000, 0., 1000.), "mass")
-
-    h4 = df1.Define("beta", "lenCalo/(tof * c)").Define("betaIP", "lenIP/(tof * c)")\
-    .Define("mass", " (p/betaIP -dEdX*lenIP) * sqrt(1. - beta * beta) * 1000")\
-    .Histo1D(("h4"," p/betaIP len IP", 2000, 0., 1000.), "mass")
-
-
-    # h1.Draw()
-    # input("wait")
-    # h2.Draw()
-    # input("wait")
-    # h3.Draw()
-    # input("wait")
     # h4.Draw()
     # input("wait")
 
-    histos = [h1, h2, h3, h4]
-
-
-    canvas = ROOT.TCanvas()
-    hs = ROOT.THStack()
-
-    for i, h in enumerate(histos):
-        hs.Add(h.GetPtr())
-        h.SetLineColor(i+1)
-
-    hs.Draw("nostack")
-
-    hs.SetTitle("Different lengths;mass, [MeV];N_{PFO}")
-    canvas.BuildLegend()
-    canvas.SetGridx()
-    canvas.SetGridy()
-    # Kaon line
-    line1 = ROOT.TLine(493.677, 0., 493.677, 2500.)
-    line1.SetLineWidth(3)
-    line1.SetLineColor(6)
-    line1.Draw()
-    # Pion line
-    line2 = ROOT.TLine(139.570, 0., 139.570, 6800.)
-    line2.SetLineWidth(3)
-    line2.SetLineColor(6)
-    line2.Draw()
-
-    # Proton line
-    line3 = ROOT.TLine(938.272, 0., 938.272, 2000.)
-    line3.SetLineWidth(3)
-    line3.SetLineColor(6)
-    line3.Draw()
-
-    canvas.Update()
+    # hs = ROOT.THStack()
+    # hs.Add(h1.GetPtr())
+    # hs.Add(h2.GetPtr())
+    # hs.Draw("nostack")
+    c.BuildLegend()
+    c.Update()
     input("wait")
 
 
 def test_bias():
     canvas = ROOT.TCanvas()
     x = np.array([139.570183535, 493.677, 938.2720881629])
+    x_err = np.array([0., 0.013, 0.])
     mg = ROOT.TMultiGraph()
+    mg.SetTitle("Bias vs mass (fit mass corrected);m_{true}, [MeV]; m_{reco}-m_{true}, [MeV]")
 
-    # IP Fit
+    # IP Fit OLD and wrong results
     # y = (np.array([113.066, 483.685, 9.33090e+02]) - x)
     # IP Avg
     # y = (np.array([1.18410e+02, 4.90807e+02, 9.44576e+02]) - x)
     # IP Closest
     # y = (np.array([114.629, 4.85649e+02, 9.36287e+02]) - x)
 
-    # Fit
-    y1_prev = (np.array([1.44045e+02, 4.96367e+02, 9.42326e+02]) - x)
-    y1 = (np.array([1.45008e+02, 4.96367e+02, 9.42326e+02]) - x)
+    # P from IP. Reference. NO nSETHits cut
+    # y = np.array([1.44266e+02, 4.96488e+02, 9.42166e+02]) - x
+    # y = np.array([1.44266e+02, 4.96488e+02, 9.42166e+02]) - x
+    # y_err = np.array([1.05738e-01, 1.15293e-01, 9.78054e-02])
+    # gr00 = ROOT.TGraphErrors(3, x, y, x_err, y_err)
+    # gr00.SetTitle("p_{IP} w/o N_{SET} cut")
+    # gr00.SetMarkerStyle(20)
+    # gr00.SetLineStyle(10)
+    # gr00.SetMarkerColor(1)
+    # gr00.SetLineColor(1)
+    # mg.Add(gr00)
+    # mg.Draw("APL")
 
-    gr_fit2 = ROOT.TGraphErrors(3, x, y)
-    gr_fit2.SetTitle("TOF Fit (Calo)")
-    gr_fit2.SetMarkerStyle(22)
-    gr_fit2.SetMarkerColor(1)
-    gr_fit2.SetLineColor(1)
-    gr_fit2.SetLineStyle(10)
-    mg.Add(gr_fit2)
+    # P from Calo. NO nSETHits cut
+    # pion fit
+    y = np.array([1.43536e+02, 4.94994e+02, 9.39755e+02]) - x
+    # kaon fit
+    y = np.array([1.43682e+02, 4.94791e+02, 9.39536e+02]) - x
+    # proton fit
+    y = np.array([1.45416e+02, 4.95307e+02, 9.39818e+02]) - x
+    #mixed fit
+    y = np.array([1.43536e+02, 4.94791e+02, 9.39818e+02]) - x
 
-    # Avg
-    y = (np.array([1.48365e+02, 5.03939e+02, 9.54064e+02]) - x)
-    gr_avg2 = ROOT.TGraphErrors(3, x, y)
-    gr_avg2.SetTitle("TOF avg (Calo)")
-    gr_avg2.SetMarkerStyle(22)
-    gr_avg2.SetMarkerColor(2)
-    gr_avg2.SetLineColor(2)
-    gr_avg2.SetLineStyle(10)
-    mg.Add(gr_avg2)
+    y_err = np.array([1.03603e-01, 1.22941e-01, 1.00797e-01])
+    gr11 = ROOT.TGraphErrors(3, x, y, x_err, y_err)
+    gr11.SetTitle("p_{calo} w/o N_{SET} cut")
+    gr11.SetMarkerStyle(20)
+    gr11.SetLineStyle(10)
+    gr11.SetMarkerColor(2)
+    gr11.SetLineColor(2)
+    mg.Add(gr11)
+    mg.Draw("APL")
 
-    # Closest
-    y = (np.array([1.45594e+02, 4.98747e+02, 9.45545e+02]) - x)
-    gr_closest2 = ROOT.TGraphErrors(3, x, y)
-    gr_closest2.SetTitle("TOF closest (Calo)")
-    gr_closest2.SetMarkerStyle(22)
-    gr_closest2.SetMarkerColor(3)
-    gr_closest2.SetLineColor(3)
-    gr_closest2.SetLineStyle(10)
-    mg.Add(gr_closest2)
+    mg.GetXaxis().SetNdivisions(510)
+    mg.GetYaxis().SetNdivisions(520)
+    mg.SetMaximum(10.)
+    mg.SetMinimum(-11.)
 
+    canvas.Update()
+    input("wait")
+
+    # pion fit
+    y = np.array([1.29531e+02, 4.87609e+02, 9.33610e+02]) - x
+    # kaon fit
+    y = np.array([1.29719e+02, 4.87284e+02, 9.33730e+02]) - x
+    # proton fit
+    y = np.array([1.30076e+02, 4.87430e+02, 9.33759e+02]) - x
+    #mixed fit
+    y = np.array([1.29531e+02, 4.87284e+02, 9.33759e+02]) - x
+
+    y_err = np.array([1.70929e-01, 2.18768e-01, 1.35535e-01])
+    gr3 = ROOT.TGraphErrors(3, x, y, x_err, y_err)
+    gr3.SetTitle("SET")
+    gr3.SetMarkerStyle(20)
+    gr3.SetLineStyle(1)
+    gr3.SetMarkerColor(4)
+    gr3.SetLineColor(4)
+    mg.Add(gr3)
+    mg.Draw("APL")
+    canvas.Update()
+    input("wait")
+
+    # P from Calo
+    # pion fit
+    y = np.array([1.47467e+02, 4.94567e+02, 9.39285e+02]) - x
+    # kaon fit
+    y = np.array([1.47637e+02, 4.94406e+02, 9.39199e+02]) - x
+    # proton fit
+    y = np.array([1.48266e+02, 4.94793e+02, 9.39285e+02]) - x
+    #mixed fit
+    y = np.array([1.47467e+02, 4.94406e+02, 9.39285e+02]) - x
+
+    y_err = np.array([1.63851e-01, 1.49119e-01, 1.12972e-01])
+    gr1 = ROOT.TGraphErrors(3, x, y, x_err, y_err)
+    gr1.SetTitle("p_{calo} w/ N_{SET} cut")
+    gr1.SetMarkerStyle(20)
+    gr1.SetLineStyle(1)
+    gr1.SetMarkerColor(2)
+    gr1.SetLineColor(2)
+    mg.Add(gr1)
 
     mg.Draw("APL")
     canvas.BuildLegend()
-    mg.SetTitle("Bias vs mass;m_{true}, [MeV]; m_{reco}-m_{true}, [MeV]")
     canvas.Update()
     input("wait")
 
