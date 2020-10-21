@@ -17,7 +17,8 @@ using EVENT::LCCollection;
 #include "EVENT/ReconstructedParticle.h"
 using EVENT::ReconstructedParticle;
 
-#include "marlin/VerbosityLevels.h"
+#include <EVENT/SimTrackerHit.h>
+using EVENT::SimTrackerHit;
 
 ExtractTrackerHits aExtractTrackerHits;
 
@@ -63,31 +64,36 @@ void ExtractTrackerHits::init(){
 }
 
 void ExtractTrackerHits::processEvent(LCEvent* evt){
-    //Pring status
     ++_nEvt;
     if(_nEvt%10 == 0){
         double elapsedTime = duration<double>(system_clock::now() - _start).count();
-        cout<<"Event: "<<_nEvt<<"   Elapsed Time: "<<elapsedTime<<" sec     Avg speed: "<<_nEvt/elapsedTime<<" evt/sec"<<endl;
+        cout << "Event: "<<_nEvt<<"   Elapsed Time: "<<elapsedTime<<" sec     Avg speed: "<<_nEvt/elapsedTime<<" evt/sec"<<endl;
     }
 
-    //Get collection of PFOs for this event
-    LCCollection* col = nullptr;
-    try{
-        col = evt->getCollection("PandoraPFOs");
-    }
-    catch (...){
-        cout<<"Event "<<_nEvt<<" has no PandoarPFOs collection. Skip event"<<endl;
-        return;
-    }
+    LCCollection* colPFO = evt->getCollection("PandoraPFOs");
 
-    for (int p=0; p<col->getNumberOfElements(); ++p){
-        const ReconstructedParticle* pfo = dynamic_cast<ReconstructedParticle*>(col->getElementAt(p));
-        // Look only at PFOs with 1 cluster and 1 track
-        if(pfo->getClusters().size() != 1 || pfo->getTracks().size() != 1) continue;
+    for (int i=0; i<colPFO->getNumberOfElements(); ++i){
+        ReconstructedParticle* pfo = dynamic_cast<ReconstructedParticle*>(colPFO->getElementAt(i));
+        int nClusters = pfo->getClusters().size();
+        int nTracks = pfo->getTracks().size();
+
+        // Only simple cases of PFOs
+        if( nClusters != 1 || nTracks > 1) continue;
+
+        if (nTracks == 0){
+            for (int j = 0; j < _nTrackerRegions; ++j){
+                _nHits[j] = 0;
+            }
+            _tree->Fill();
+            continue;
+        }
 
         const Track* track = pfo->getTracks()[0];
 
         for (auto&& hit : track->getTrackerHits() ){
+            // const vector<LCObject*>& objVec = hit->getRawHits();
+            // cout<<objVec.size()<<endl;
+
             const double* pos = hit->getPosition();
             const double rho = sqrt(pos[0]*pos[0]+pos[1]*pos[1]);
             // 0 - Inner, 1 - TPC, 2 - SET
@@ -97,15 +103,15 @@ void ExtractTrackerHits::processEvent(LCEvent* evt){
             _z[trackerIdx].push_back(pos[2]);
             _t[trackerIdx].push_back(hit->getTime());
         }
-        for (int i = 0; i < _nTrackerRegions; ++i) _nHits[i] = _x[i].size();
+        for (int j = 0; j < _nTrackerRegions; ++j) _nHits[j] = _x[j].size();
         _tree->Fill();
 
         //Clear all the vectors before next PFO
-        for (int i = 0; i < _nTrackerRegions; ++i){
-            _x[i].clear();
-            _y[i].clear();
-            _z[i].clear();
-            _t[i].clear();
+        for (int j = 0; j < _nTrackerRegions; ++j){
+            _x[j].clear();
+            _y[j].clear();
+            _z[j].clear();
+            _t[j].clear();
         }
     } // end of PFOs loop
 }

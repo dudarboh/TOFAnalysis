@@ -18,14 +18,15 @@
 	<execute>
         <processor name="InitDD4hep" />
 
-        <processor name="MyRefitProcessorKaon"/>
-        <processor name="MyRefitProcessorProton"/>
+        <!-- <processor name="MyRefitProcessorKaon"/> -->
+        <!-- <processor name="MyRefitProcessorProton"/> -->
 
+        <!-- <processor name="MyExtractPFO"/> -->
         <processor name="MyExtractTrackerHits"/>
-        <processor name="MyExtractCalorimeterHits"/>
-        <processor name="ExtractTrackParamsPion"/>
-        <processor name="ExtractTrackParamsKaon"/>
-        <processor name="ExtractTrackParamsProton"/>
+        <!-- <processor name="MyExtractCalorimeterHits"/> -->
+        <!-- <processor name="ExtractTrackParamsPion"/> -->
+        <!-- <processor name="ExtractTrackParamsKaon"/> -->
+        <!-- <processor name="ExtractTrackParamsProton"/> -->
 	</execute>
 
 
@@ -35,6 +36,10 @@
             /cvmfs/ilc.desy.de/sw/x86_64_gcc82_centos7/v02-02/lcgeo/v00-16-06/ILD/compact/${DetectorModel}/${DetectorModel}.xml
         </parameter>
     </processor>
+
+
+    <processor name="MyExtractPFO" type="ExtractPFO">
+	</processor>
 
 
     <processor name="MyExtractTrackerHits" type="ExtractTrackerHits">

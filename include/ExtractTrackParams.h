@@ -45,8 +45,6 @@ protected:
 
     double _bField;
 
-    double _pPFO;
-    float _charge;
     float _chi2;
     int _ndf;
     float _dEdX;

@@ -15,6 +15,8 @@ using EVENT::ReconstructedParticle;
 
 #include "HelixClass.h"
 
+#include <UTIL/LCRelationNavigator.h>
+
 ExtractTrackParams aExtractTrackParams;
 
 ExtractTrackParams::ExtractTrackParams() : Processor("ExtractTrackParams"){
@@ -37,7 +39,6 @@ void ExtractTrackParams::init(){
     string treeName = _massAssumption + "TrackParams";
     _tree = new TTree(treeName.c_str(), "Track fit parameters");
 
-    _tree->Branch("charge", &_charge, "charge/F");
     _tree->Branch("chi2", &_chi2, "chi2/F");
     _tree->Branch("ndf", &_ndf, "ndf/I");
     _tree->Branch("dEdX", &_dEdX, "dEdX/F");
@@ -97,82 +98,92 @@ void ExtractTrackParams::processEvent(LCEvent* evt){
         cout << "Event: "<<_nEvt<<"   Elapsed Time: "<<elapsedTime<<" sec     Avg speed: "<<_nEvt/elapsedTime<<" evt/sec"<<endl;
     }
 
-    //Get collection of PFOs for this event
-    LCCollection* col = nullptr;
-    try{
-        col = evt->getCollection("PandoraPFOs");
-    }
-    catch (...){
-        cout<<"Event "<<_nEvt<<" has no PandoarPFOs collection. Skip event"<<endl;
-        return;
-    }
+    LCCollection* colPFO = evt->getCollection("PandoraPFOs");
 
-    LCCollection* trackColPion = evt->getCollection("MarlinTrkTracks");
+    LCCollection* colTrackPion = evt->getCollection("MarlinTrkTracks");
 
-    LCCollection* trackCol = nullptr;
-    if (_massAssumption == "Kaon") trackCol = evt->getCollection("MarlinTrkTracksKaon");
-    else if (_massAssumption == "Proton") trackCol = evt->getCollection("MarlinTrkTracksProton");
+    LCCollection* colTrack = nullptr;
+    if (_massAssumption == "Kaon") colTrack = evt->getCollection("MarlinTrkTracksKaon");
+    else if (_massAssumption == "Proton") colTrack = evt->getCollection("MarlinTrkTracksProton");
 
+    for (int i=0; i<colPFO->getNumberOfElements(); ++i){
+        ReconstructedParticle* pfo = dynamic_cast<ReconstructedParticle*>(colPFO->getElementAt(i));
+        int nClusters = pfo->getClusters().size();
+        int nTracks = pfo->getTracks().size();
 
-    for (int p=0; p<col->getNumberOfElements(); ++p){
-        const ReconstructedParticle* pfo = dynamic_cast<ReconstructedParticle*>(col->getElementAt(p));
-        // Look only at PFOs with 1 cluster and 1 track
-        if(pfo->getClusters().size() != 1 || pfo->getTracks().size() != 1) continue;
+        // Only simple cases of PFOs
+        if( nClusters != 1 || nTracks > 1) continue;
 
-
-        _charge = pfo->getCharge();
+        if (nTracks == 0){
+            _chi2 = 0.;
+            _ndf = 0;
+            _dEdX = 0.;
+            for (int j = 0; j < _nTrackStates; ++j){
+                _d0[j] = 0.;
+                _phi[j] = 0.;
+                _omega[j] = 0.;
+                _z0[j] = 0.;
+                _tanL[j] = 0.;
+                _xRef[j] = 0.;
+                _yRef[j] = 0.;
+                _zRef[j] = 0.;
+                _p[j] = 0.;
+                _pt[j] = 0.;
+            }
+            _tree->Fill();
+            continue;
+        }
 
         //Get track from PFO or collection with refitted mass assumption
         const Track* pfoTrack = pfo->getTracks()[0];
 
-        int trackColIdx = -1;
+        int colTrackIdx = -1;
         if (_massAssumption == "Kaon" || _massAssumption == "Proton"){
-            for (int i = 0; i < trackColPion->getNumberOfElements(); ++i) {
-                const Track* tmpTrack = dynamic_cast<Track*>(trackColPion->getElementAt(i));
-                if (pfoTrack == tmpTrack) {trackColIdx = i; break;}
+            for (int j = 0; j < colTrackPion->getNumberOfElements(); ++j) {
+                const Track* tmpTrack = dynamic_cast<Track*>(colTrackPion->getElementAt(j));
+                if (pfoTrack == tmpTrack) {colTrackIdx = j; break;}
             }
         }
 
-
         const Track* track = nullptr;
         if (_massAssumption == "Pion") track = pfoTrack;
-        else if (_massAssumption == "Kaon") track = dynamic_cast<Track*>(trackCol->getElementAt(trackColIdx));
-        else if (_massAssumption == "Proton") track = dynamic_cast<Track*>(trackCol->getElementAt(trackColIdx));
+        else if (_massAssumption == "Kaon") track = dynamic_cast<Track*>(colTrack->getElementAt(colTrackIdx));
+        else if (_massAssumption == "Proton") track = dynamic_cast<Track*>(colTrack->getElementAt(colTrackIdx));
 
         _chi2 = track->getChi2();
         _ndf = track->getNdf();
         _dEdX = track->getdEdx();
 
-        for (int i = 0; i < _nTrackStates; ++i) {
+        for (int j = 0; j < _nTrackStates; ++j) {
             if(_ndf == 0){
-                _d0[i] = 0.;
-                _phi[i] = 0.;
-                _omega[i] = 0.;
-                _z0[i] = 0.;
-                _tanL[i] = 0.;
-                _xRef[i] = 0.;
-                _yRef[i] = 0.;
-                _zRef[i] = 0.;
-                _p[i] = 0.;
-                _pt[i] = 0.;
+                _d0[j] = 0.;
+                _phi[j] = 0.;
+                _omega[j] = 0.;
+                _z0[j] = 0.;
+                _tanL[j] = 0.;
+                _xRef[j] = 0.;
+                _yRef[j] = 0.;
+                _zRef[j] = 0.;
+                _p[j] = 0.;
+                _pt[j] = 0.;
                 continue;
             }
-            const TrackState* ts = track->getTrackState(_trackStates[i]);
-            _d0[i] = ts->getD0();
-            _phi[i] = ts->getPhi();
-            _omega[i] = ts->getOmega();
-            _z0[i] = ts->getZ0();
-            _tanL[i] = ts->getTanLambda();
+            const TrackState* ts = track->getTrackState(_trackStates[j]);
+            _d0[j] = ts->getD0();
+            _phi[j] = ts->getPhi();
+            _omega[j] = ts->getOmega();
+            _z0[j] = ts->getZ0();
+            _tanL[j] = ts->getTanLambda();
             const float* pos = ts->getReferencePoint();
-            _xRef[i] = pos[0];
-            _yRef[i] = pos[1];
-            _zRef[i] = pos[2];
+            _xRef[j] = pos[0];
+            _yRef[j] = pos[1];
+            _zRef[j] = pos[2];
 
             HelixClass helix;
-            helix.Initialize_Canonical(_phi[i], _d0[i], _z0[i], _omega[i], _tanL[i], _bField);
+            helix.Initialize_Canonical(_phi[j], _d0[j], _z0[j], _omega[j], _tanL[j], _bField);
             const float* mom = helix.getMomentum();
-            _p[i] = sqrt(mom[0]*mom[0] + mom[1]*mom[1] + mom[2]*mom[2]);
-            _pt[i] = sqrt(mom[0]*mom[0] + mom[1]*mom[1]);
+            _p[j] = sqrt(mom[0]*mom[0] + mom[1]*mom[1] + mom[2]*mom[2]);
+            _pt[j] = sqrt(mom[0]*mom[0] + mom[1]*mom[1]);
         }
         _tree->Fill();
     } // end of PFOs loop

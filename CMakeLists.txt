@@ -26,7 +26,8 @@ project(TOFAnalysis VERSION 1.0)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 add_library(${PROJECT_NAME} SHARED  ${PROJECT_SOURCE_DIR}/src/ExtractTrackerHits.cpp
                                     ${PROJECT_SOURCE_DIR}/src/ExtractCalorimeterHits.cpp
-                                    ${PROJECT_SOURCE_DIR}/src/ExtractTrackParams.cpp)
+                                    ${PROJECT_SOURCE_DIR}/src/ExtractTrackParams.cpp
+                                    ${PROJECT_SOURCE_DIR}/src/ExtractPFO.cpp)
 
 
 ### DEPENDENCIES ###

@@ -12,8 +12,6 @@ using EVENT::ReconstructedParticle;
 // CHT class
 #include "marlinutil/CalorimeterHitType.h"
 
-#include "marlin/VerbosityLevels.h"
-
 ExtractCalorimeterHits aExtractCalorimeterHits;
 
 ExtractCalorimeterHits::ExtractCalorimeterHits() : Processor("ExtractCalorimeterHits"){
