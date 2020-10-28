@@ -37,9 +37,6 @@ protected:
     TFile* _file;
     TTree* _tree;
 
-    double _rTPCInner;
-    double _rTPCOuter;
-
     // static const int _nCalorimeterRegions = 1;
     int _nHits;
     vector <float> _x;

@@ -21,12 +21,13 @@
         <!-- <processor name="MyRefitProcessorKaon"/> -->
         <!-- <processor name="MyRefitProcessorProton"/> -->
 
-        <!-- <processor name="MyExtractPFO"/> -->
+        <processor name="MyExtractPFO"/>
+        <processor name="MyExtractCluster"/>
         <processor name="MyExtractTrackerHits"/>
-        <!-- <processor name="MyExtractCalorimeterHits"/> -->
-        <!-- <processor name="ExtractTrackParamsPion"/> -->
-        <!-- <processor name="ExtractTrackParamsKaon"/> -->
-        <!-- <processor name="ExtractTrackParamsProton"/> -->
+        <processor name="MyExtractCalorimeterHits"/>
+        <processor name="ExtractTrackPion"/>
+        <!-- <processor name="ExtractTrackKaon"/>
+        <processor name="ExtractTrackProton"/> -->
 	</execute>
 
 
@@ -38,29 +39,23 @@
     </processor>
 
 
-    <processor name="MyExtractPFO" type="ExtractPFO">
-	</processor>
+    <processor name="MyExtractPFO" type="ExtractPFO"></processor>
+    <processor name="MyExtractCluster" type="ExtractCluster"></processor>
+    <processor name="MyExtractTrackerHits" type="ExtractTrackerHits"></processor>
+    <processor name="MyExtractCalorimeterHits" type="ExtractCalorimeterHits"></processor>
 
 
-    <processor name="MyExtractTrackerHits" type="ExtractTrackerHits">
-	</processor>
-
-
-    <processor name="MyExtractCalorimeterHits" type="ExtractCalorimeterHits">
-	</processor>
-
-
-    <processor name="ExtractTrackParamsPion" type="ExtractTrackParams">
+    <processor name="ExtractTrackPion" type="ExtractTrack">
         <parameter name="massAssumption">Pion</parameter>
 	</processor>
 
 
-    <processor name="ExtractTrackParamsKaon" type="ExtractTrackParams">
+    <processor name="ExtractTrackKaon" type="ExtractTrack">
         <parameter name="massAssumption">Kaon</parameter>
 	</processor>
 
 
-    <processor name="ExtractTrackParamsProton" type="ExtractTrackParams">
+    <processor name="ExtractTrackProton" type="ExtractTrack">
         <parameter name="massAssumption">Proton</parameter>
 	</processor>
 

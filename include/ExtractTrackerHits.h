@@ -46,6 +46,18 @@ protected:
     vector <double> _y[_nTrackerRegions];
     vector <double> _z[_nTrackerRegions];
     vector <float> _t[_nTrackerRegions];
+
+    vector <int> _nMC[_nTrackerRegions];
+    vector <double> _xMC[_nTrackerRegions];
+    vector <double> _yMC[_nTrackerRegions];
+    vector <double> _zMC[_nTrackerRegions];
+    vector <float> _tMC[_nTrackerRegions];
+    vector <float> _eDepMC[_nTrackerRegions];
+    vector <double> _pxMC[_nTrackerRegions];
+    vector <double> _pyMC[_nTrackerRegions];
+    vector <double> _pzMC[_nTrackerRegions];
+    vector <float> _pathLengthMC[_nTrackerRegions];
+    vector <float> _isProducedBySecondary[_nTrackerRegions];
 };
 
 

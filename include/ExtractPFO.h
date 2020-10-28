@@ -39,8 +39,9 @@ protected:
     TTree* _tree;
 
     float _charge;
-    double _p;
-    double _pt;
+    double _px;
+    double _py;
+    double _pz;
     int _nTracks;
 
     int _nMC;
@@ -52,8 +53,9 @@ protected:
     vector<double> _yMC;
     vector<double> _zMC;
     vector<float> _tMC;
-    vector<double> _pMC;
-    vector<double> _ptMC;
+    vector<double> _pxMC;
+    vector<double> _pyMC;
+    vector<double> _pzMC;
     vector<float> _massMC;
     vector<float> _chargeMC;
 

@@ -40,27 +40,16 @@ void ExtractCalorimeterHits::init(){
 }
 
 void ExtractCalorimeterHits::processEvent(LCEvent* evt){
-    //Pring status
     ++_nEvt;
-    if(_nEvt%10 == 0){
-        double elapsedTime = duration<double>(system_clock::now() - _start).count();
-        cout<<"Event: "<<_nEvt<<"   Elapsed Time: "<<elapsedTime<<" sec     Avg speed: "<<_nEvt/elapsedTime<<" evt/sec"<<endl;
-    }
+    LCCollection* colPFO = evt->getCollection("PandoraPFOs");
 
-    //Get collection of PFOs for this event
-    LCCollection* col = nullptr;
-    try{
-        col = evt->getCollection("PandoraPFOs");
-    }
-    catch (...){
-        cout<<"Event "<<_nEvt<<" has no PandoarPFOs collection. Skip event"<<endl;
-        return;
-    }
+    for (int i=0; i<colPFO->getNumberOfElements(); ++i){
+        ReconstructedParticle* pfo = dynamic_cast<ReconstructedParticle*>(colPFO->getElementAt(i));
+        int nClusters = pfo->getClusters().size();
+        int nTracks = pfo->getTracks().size();
 
-    for (int p=0; p<col->getNumberOfElements(); ++p){
-        const ReconstructedParticle* pfo = dynamic_cast<ReconstructedParticle*>(col->getElementAt(p));
-        // Look only at PFOs with 1 cluster and 1 track
-        if(pfo->getClusters().size() != 1 || pfo->getTracks().size() != 1) continue;
+        // Only simple cases of PFOs
+        if( nClusters != 1 || nTracks > 1) continue;
 
         const Cluster* cluster = pfo->getClusters()[0];
         //Count only ECAl

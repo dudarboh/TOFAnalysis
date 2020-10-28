@@ -1,10 +1,14 @@
-using namespace std;
+using std::cout, std::endl, std::stringstream, std::vector, std::string, std::runtime_error;
 using namespace ROOT::VecOps;
 
 #include "DDRec/Vector3D.h"
 using dd4hep::rec::Vector3D;
 
-double c = 299.792458;
+const double PI = 3.141592653589793238462643383279502884;
+const double rInner = 1804.8;
+const Vector3D testVec(1804.8, 0., PI/2., Vector3D::spherical);
+const double c = 299.792458;
+
 struct Hit{
     double t;
     double r;
@@ -37,6 +41,15 @@ double track_len(double phi1, double phi2, double omega1, double omega2, double 
     for (int i = 1; i < nPoints; i+=2) result += func[i-1] + 4*func[i] + func[i+1];
     return h/3. * result;
 }
+
+RVec <double> rFunc(const RVec <float>& x, const RVec <float>& y, const RVec <float>& z, float x0, float y0, float z0){
+    RVec <double> rVec;
+    for (size_t i = 0; i < x.size(); ++i) {
+        rVec.push_back(sqrt((x[i]-x0)*(x[i]-x0) + (y[i]-y0)*(y[i]-y0) + (z[i]-z0)*(z[i]-z0)));
+    }
+    return rVec;
+}
+
 
 double tof_closest(const RVec<double> &t_hit, const RVec<double> &r_hit){
     int min_idx = min_element(r_hit.begin(), r_hit.end()) - r_hit.begin();
@@ -78,12 +91,12 @@ double tof_avg(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<
 
 RVec <double> dToLine(const RVec <float>& x, const RVec <float>& y, const RVec <float>& z,
                      const float& xRef, const float& yRef, const float& zRef,
-                     const float& phi, const float& tanL){
+                     const float& phi, const float& theta){
     vector <double> distance;
 
     float posRef[3] = {xRef, yRef, zRef};
     Vector3D refPoint(posRef);
-    Vector3D unitDir(1., phi, atan(1./tanL), Vector3D::spherical);
+    Vector3D unitDir(1., phi, theta, Vector3D::spherical);
 
     for(int i = 0; i < x.size(); ++i){
         float pos[3] = {x[i], y[i], z[i]};
@@ -154,6 +167,49 @@ double tof_fit(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<
     TF1 fit = *gr.GetFunction("pol1");
     // if (fit.GetChisquare() > 1.) continue;
     double tof = fit.GetParameter(0);
-    if (tof <= 0.) return 0.;
+    if (tof <= 0.) return -999.;
     return tof;
+}
+
+
+
+// Code to find intersection of a line and a plane
+double intersection(double nx, double ny, double nz,
+                    double x0, double y0, double z0,
+                    double px, double py, double pz,
+                    double x1, double y1, double z1){
+    //n - normal vector to the plane
+    Vector3D n(nx, ny, nz);
+    //x0 - any point on a plane
+    Vector3D r0(x0, y0, z0);
+    //p - directional vector of a line
+    Vector3D p(px, py, pz);
+    //x1 - any point on a line
+    Vector3D r1(x1, y1, z1);
+
+    // If plane and line parallel return 0.
+    if (p.dot(n) == 0.) return 0.;
+
+    // Line parameter for a solution
+    double t = (r0 - r1).dot(n)/p.dot(n);
+    return t;
+}
+
+
+double getPlaneDir(double phi, int dir){
+    //Input is cluster direction.
+    // This point gives direction AND point of the plane
+    double center_phi = 0.;
+    for (int i = 0; i < 8; ++i){
+        if (center_phi - PI/8. <= phi < center_phi + PI/8.) break;
+        else center_phi += PI/4.;
+    }
+    Vector3D pos(1804.8, center_phi, PI/2., Vector3D::spherical);
+    return pos[dir];
+}
+
+double getLineDir(double r, double phi, int theta, int dir){
+    //Line direction based on cluster direction
+    Vector3D pos(r, phi, theta, Vector3D::spherical);
+    return pos[dir];
 }

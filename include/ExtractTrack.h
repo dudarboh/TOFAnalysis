@@ -1,12 +1,12 @@
 /**
-    @file ExtractTrackParams.h
+    @file ExtractTrack.h
     @author Bohdan Dudar
     @date October 2020
-    @brief ExtractTrackParams class for extracting data from slcio into root file
+    @brief ExtractTrack class for extracting data from slcio into root file
 */
 
-#ifndef ExtractTrackParams_h
-#define ExtractTrackParams_h 1
+#ifndef ExtractTrack_h
+#define ExtractTrack_h 1
 
 #include "TFile.h"
 #include "TTree.h"
@@ -22,12 +22,12 @@ using std::vector, std::string;
 // using EVENT::TrackState;
 // #include "lcio.h"
 
-class ExtractTrackParams : public Processor {
+class ExtractTrack : public Processor {
 public:
-    ExtractTrackParams();
-    ~ExtractTrackParams();
+    ExtractTrack();
+    ~ExtractTrack();
 
-    Processor* newProcessor() {return new ExtractTrackParams;}
+    Processor* newProcessor() {return new ExtractTrack;}
     void init();
     void processEvent(LCEvent* evt);
     void end();
@@ -53,8 +53,9 @@ protected:
     static const int _nTrackStates = 4;
     int _trackStates[_nTrackStates] = {TrackState::AtIP, TrackState::AtFirstHit, TrackState::AtLastHit, TrackState::AtCalorimeter};
 
-    float _p[_nTrackStates];
-    float _pt[_nTrackStates];
+    float _px[_nTrackStates];
+    float _py[_nTrackStates];
+    float _pz[_nTrackStates];
     float _d0[_nTrackStates];
     float _phi[_nTrackStates];
     float _omega[_nTrackStates];

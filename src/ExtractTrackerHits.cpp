@@ -20,6 +20,9 @@ using EVENT::ReconstructedParticle;
 #include <EVENT/SimTrackerHit.h>
 using EVENT::SimTrackerHit;
 
+#include <UTIL/LCRelationNavigator.h>
+
+
 ExtractTrackerHits aExtractTrackerHits;
 
 ExtractTrackerHits::ExtractTrackerHits() : Processor("ExtractTrackerHits"){
@@ -48,6 +51,19 @@ void ExtractTrackerHits::init(){
     _tree->Branch("xTPC", &_x[1]);
     _tree->Branch("yTPC", &_y[1]);
     _tree->Branch("zTPC", &_z[1]);
+    // _tree->Branch("tTPC", &_t[1]);
+
+    _tree->Branch("nTPCMC", &_nMC[1]);
+    _tree->Branch("xTPCMC", &_xMC[1]);
+    _tree->Branch("yTPCMC", &_yMC[1]);
+    _tree->Branch("zTPCMC", &_zMC[1]);
+    _tree->Branch("tTPCMC", &_tMC[1]);
+    _tree->Branch("eDepTPCMC", &_eDepMC[1]);
+    _tree->Branch("pxTPCMC", &_pxMC[1]);
+    _tree->Branch("pyTPCMC", &_pyMC[1]);
+    _tree->Branch("pzTPCMC", &_pzMC[1]);
+    _tree->Branch("pathLengthTPCMC", &_pathLengthMC[1]);
+    _tree->Branch("isProducedBySecondaryTPCMC", &_isProducedBySecondary[1]);
 
     _tree->Branch("nSETHits", &_nHits[2], "nSETHits/I");
     _tree->Branch("xSET", &_x[2]);
@@ -72,6 +88,11 @@ void ExtractTrackerHits::processEvent(LCEvent* evt){
 
     LCCollection* colPFO = evt->getCollection("PandoraPFOs");
 
+    LCCollection* colRelationTPC = evt->getCollection("TPCTrackerHitRelations");
+    LCRelationNavigator relationTPC(colRelationTPC);
+    LCCollection* colRelationSET = evt->getCollection("SETTrackerHitRelations");
+    LCRelationNavigator relationSET(colRelationSET);
+
     for (int i=0; i<colPFO->getNumberOfElements(); ++i){
         ReconstructedParticle* pfo = dynamic_cast<ReconstructedParticle*>(colPFO->getElementAt(i));
         int nClusters = pfo->getClusters().size();
@@ -81,9 +102,7 @@ void ExtractTrackerHits::processEvent(LCEvent* evt){
         if( nClusters != 1 || nTracks > 1) continue;
 
         if (nTracks == 0){
-            for (int j = 0; j < _nTrackerRegions; ++j){
-                _nHits[j] = 0;
-            }
+            for (int j = 0; j < _nTrackerRegions; ++j) _nHits[j] = 0;
             _tree->Fill();
             continue;
         }
@@ -91,9 +110,6 @@ void ExtractTrackerHits::processEvent(LCEvent* evt){
         const Track* track = pfo->getTracks()[0];
 
         for (auto&& hit : track->getTrackerHits() ){
-            // const vector<LCObject*>& objVec = hit->getRawHits();
-            // cout<<objVec.size()<<endl;
-
             const double* pos = hit->getPosition();
             const double rho = sqrt(pos[0]*pos[0]+pos[1]*pos[1]);
             // 0 - Inner, 1 - TPC, 2 - SET
@@ -102,6 +118,26 @@ void ExtractTrackerHits::processEvent(LCEvent* evt){
             _y[trackerIdx].push_back(pos[1]);
             _z[trackerIdx].push_back(pos[2]);
             _t[trackerIdx].push_back(hit->getTime());
+
+            if (trackerIdx != 1) continue;
+
+            vector <LCObject*> relationObjects = relationTPC.getRelatedToObjects(hit);
+            _nMC[trackerIdx].push_back(relationObjects.size());
+            if (relationObjects.size() == 0) continue;
+            // Push only 1st hit info. Managing 2d array in root files is pain
+            SimTrackerHit* mcHit = dynamic_cast<SimTrackerHit*>(relationObjects[0]);
+            const double* posMC = mcHit->getPosition();
+            _xMC[trackerIdx].push_back(posMC[0]);
+            _yMC[trackerIdx].push_back(posMC[1]);
+            _zMC[trackerIdx].push_back(posMC[2]);
+            _tMC[trackerIdx].push_back(mcHit->getTime());
+            _eDepMC[trackerIdx].push_back(mcHit->getEDep());
+            const float* mom = mcHit->getMomentum();
+            _pxMC[trackerIdx].push_back(mom[0]);
+            _pyMC[trackerIdx].push_back(mom[1]);
+            _pzMC[trackerIdx].push_back(mom[2]);
+            _pathLengthMC[trackerIdx].push_back(mcHit->getPathLength());
+            _isProducedBySecondary[trackerIdx].push_back(mcHit->isProducedBySecondary());
         }
         for (int j = 0; j < _nTrackerRegions; ++j) _nHits[j] = _x[j].size();
         _tree->Fill();
@@ -112,6 +148,18 @@ void ExtractTrackerHits::processEvent(LCEvent* evt){
             _y[j].clear();
             _z[j].clear();
             _t[j].clear();
+
+            _nMC[j].clear();
+            _xMC[j].clear();
+            _yMC[j].clear();
+            _zMC[j].clear();
+            _tMC[j].clear();
+            _eDepMC[j].clear();
+            _pxMC[j].clear();
+            _pyMC[j].clear();
+            _pzMC[j].clear();
+            _pathLengthMC[j].clear();
+            _isProducedBySecondary[j].clear();
         }
     } // end of PFOs loop
 }

@@ -15,32 +15,110 @@ import matplotlib.pyplot as plt
 # df = ROOT.RDataFrame("ana_tree", "/nfs/dust/ilc/user/dudarboh/final_files/calib_kaons.root")
 
 # 2f_Z_hadronic data
-ch = ROOT.TChain("TrackerHits")
-ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
+ch = ROOT.TChain("PFO")
+ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result1.root")
 
-ch1 = ROOT.TChain("ECALHits")
-ch1.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
+ch1 = ROOT.TChain("Cluster")
+ch1.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result1.root")
 
-ch2 = ROOT.TChain("PionTrackParams")
-ch2.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
+ch2 = ROOT.TChain("PionTrack")
+ch2.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result1.root")
 
-ch3 = ROOT.TChain("KaonTrackParams")
-ch3.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
+ch3 = ROOT.TChain("TrackerHits")
+ch3.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result1.root")
 
-ch4 = ROOT.TChain("ProtonTrackParams")
-ch4.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
+ch4 = ROOT.TChain("ECALHits")
+ch4.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result1.root")
 
-
-ch.AddFriend(ch1, "cal")
+ch.AddFriend(ch1, "cluster")
 ch.AddFriend(ch2, "piFit")
-ch.AddFriend(ch3, "kFit")
-ch.AddFriend(ch4, "pFit")
+ch.AddFriend(ch3, "tr")
+ch.AddFriend(ch4, "cal")
 
 d = ROOT.RDataFrame(ch)
+ROOT.gInterpreter.Declare('#include "analysis.h"')
+
+def photon_tof():
+    # Cuts on nice photons
+    d1 = d.Filter("cal.nHits > 10 \
+                  && PDG[0] == 22\
+                  && nMC == 1\
+                  && isBackscatter[0] == 0\
+                  && isDecayedInTracker[0] == 0\
+                  && abs(cluster.z) < 2200.\
+                  && abs(xMC[0]) < 1.\
+                  && abs(yMC[0]) < 1.\
+                  && abs(zMC[0]) < 1.")
+
+    # Cuts for nice hits in calo for fit
+    d2 = d1.Define("caloHitCut", "cal.layer < 10 && cal.t > 1.e-3")\
+    .Define("layerCal", "cal.layer[caloHitCut]").Filter("layerCal.size() > 0")\
+    .Define("xCal", "cal.x[caloHitCut]")\
+    .Define("yCal", "cal.y[caloHitCut]")\
+    .Define("zCal", "cal.z[caloHitCut]")\
+    .Define("tCal", "cal.t[caloHitCut]")
+
+    # Line parameters
+    d3 = d2.Define("pxLine", "cluster.x - xMC[0]")\
+    .Define("pyLine", "cluster.y - yMC[0]")\
+    .Define("pzLine", "cluster.z - zMC[0]")
+
+
+
+    # Plane parameters
+    d4 = d3.Define("phiLine", "atan2(pyLine,pxLine)").Define("thetaLine", "atan2( sqrt(pxLine*pxLine + pyLine*pyLine), pzLine)")\
+    .Define("nx", "getPlaneDir(phiLine, 0)").Define("ny", "getPlaneDir(phiLine, 1)").Define("nz", "getPlaneDir(phiLine, 2)")
+
+    d5 = d4.Define("tLineParam", "intersection(nx, ny, nz, nx, ny, nz, pxLine, pyLine, pzLine, cluster.x, cluster.y, cluster.z)")
+
+    # Impact parameters
+    d6 = d5.Define("xImpact", "tLineParam*pxLine + cluster.x")\
+        .Define("yImpact", "tLineParam*pyLine + cluster.y")\
+        .Define("zImpact", "tLineParam*pzLine + cluster.z")\
+
+    # TOF from 10 closest hits
+    d7 = d6.Define("dToLine", "dToLine(xCal, yCal, zCal, xImpact, yImpact, zImpact, phiLine, thetaLine)")\
+    .Define("dToRef", "dToRef(xCal, yCal, zCal, xImpact, yImpact, zImpact)")\
+    .Define("tofFit", "tof_fit(tCal, dToRef, dToLine, layerCal)")\
+
+    # TOF from track length to impact point
+    d8 = d7.Define("tofLen", "sqrt((xImpact-xMC[0])*(xImpact-xMC[0]) + (yImpact-yMC[0])*(yImpact-yMC[0]) + (zImpact-zMC[0])*(zImpact-zMC[0]))/c")
+    # d5 = d4.Define("tofLen", "sqrt((xImpact)*(xImpact) + (yImpact)*(yImpact) + (zImpact)*(zImpact))/c")
+
+    h1 = d8.Define("diff", "tofFit - tofLen").Histo1D(("h1","TOF_{fit} - TOF_{len} (Cluster pos)", 500, -.25, .25), "diff")
+
+    # Line parameters
+    d3 = d2.Define("rCluster", "sqrt(cluster.x*cluster.x + cluster.y*cluster.y + cluster.z*cluster.z)")\
+        .Define("pxLine", "getLineDir(rCluster, cluster.phi, cluster.theta, 0)")\
+        .Define("pyLine", "getLineDir(rCluster, cluster.phi, cluster.theta, 1)")\
+        .Define("pzLine", "getLineDir(rCluster, cluster.phi, cluster.theta, 2)")\
+
+    # Plane parameters
+    d4 = d3.Define("nx", "getPlaneDir(cluster.phi, 0)").Define("ny", "getPlaneDir(cluster.phi, 1)").Define("nz", "getPlaneDir(cluster.phi, 2)")
+
+    d5 = d4.Define("tLineParam", "intersection(nx, ny, nz, nx, ny, nz, pxLine, pyLine, pzLine, cluster.x, cluster.y, cluster.z)")
+
+    # Impact parameters
+    d6 = d5.Define("xImpact", "tLineParam*pxLine + cluster.x")\
+        .Define("yImpact", "tLineParam*pyLine + cluster.y")\
+        .Define("zImpact", "tLineParam*pzLine + cluster.z")\
+
+    # TOF from 10 closest hits
+    d7 = d6.Define("dToLine", "dToLine(xCal, yCal, zCal, xImpact, yImpact, zImpact, cluster.phi, cluster.theta)")\
+    .Define("dToRef", "dToRef(xCal, yCal, zCal, xImpact, yImpact, zImpact)")\
+    .Define("tofFit", "tof_fit(tCal, dToRef, dToLine, layerCal)")\
+
+    # TOF from track length to impact point
+    d8 = d7.Define("tofLen", "sqrt((xImpact-xMC[0])*(xImpact-xMC[0]) + (yImpact-yMC[0])*(yImpact-yMC[0]) + (zImpact-zMC[0])*(zImpact-zMC[0]))/c")
+    # d5 = d4.Define("tofLen", "sqrt((xImpact)*(xImpact) + (yImpact)*(yImpact) + (zImpact)*(zImpact))/c")
+
+    h2 = d8.Define("diff", "tofFit - tofLen").Histo1D(("h2","TOF_{fit} - TOF_{len} (Cluster dir)", 500, -.25, .25), "diff")
+
+    h1.Draw()
+    h2.Draw("same")
+    input("wait")
 
 def tof_analysis():
-    ROOT.gInterpreter.Declare('#include "analysis.h"')
-
     c = ROOT.TCanvas()
     # Good PFO cuts
     d1 = d.Filter("cal.nHits > 0")
@@ -53,7 +131,7 @@ def tof_analysis():
     .Define("zCal", "cal.z[caloHitCut]")\
     .Define("tCal", "cal.t[caloHitCut]")
     # Define calorimeter hit parameters
-    # d3 = d2.Define("dToLine", "dToLine(xCal, yCal, zCal, pFit.xRefCalState, pFit.yRefCalState, pFit.zRefCalState, pFit.phiCalState, pFit.tanLCalState)")\
+    # d3 = d2.Define("dToLine", "dToLine(xCal, yCal, zCal, pFit.xRefCalState, pFit.yRefCalState, pFit.zRefCalState, pFit.phiCalState, atan(1./pFit.tanLCalState))")\
     # .Define("dToRef", "dToRef(xCal, yCal, zCal, pFit.xRefCalState, pFit.yRefCalState, pFit.zRefCalState)")\
     # .Define("tof", "tof_fit(tCal, dToRef, dToLine, layerCal)")\
     # .Define("length", "abs((pFit.phi-pFit.phiCalState)/pFit.omegaCalState)*sqrt(1. + pFit.tanLCalState*pFit.tanLCalState)")\
@@ -185,10 +263,9 @@ def test_bias():
 pr = cProfile.Profile()
 pr.enable()
 
-tof_analysis()
+photon_tof()
+# tof_analysis()
 # test_bias()
-
-
 
 
 pr.disable()

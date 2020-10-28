@@ -1,7 +1,7 @@
 #include "ExtractPFO.h"
 
 // #include <iostream>
-using std::cout, std::endl;
+using std::cout, std::endl, std::stringstream, std::runtime_error;
 
 #include "EVENT/LCCollection.h"
 using EVENT::LCCollection;
@@ -12,6 +12,38 @@ using EVENT::ReconstructedParticle;
 using EVENT::MCParticle;
 
 #include <UTIL/LCRelationNavigator.h>
+
+
+//This part to get inner radius of ECAL
+#include <DDRec/DetectorData.h>
+using dd4hep::rec::LayeredCalorimeterData;
+
+#include "DD4hep/Detector.h"
+#include <DD4hep/DetType.h>
+using dd4hep::Detector, dd4hep::DetType, dd4hep::DetElement;
+
+#include "DD4hep/DetectorSelector.h"
+
+#include "DD4hep/DD4hepUnits.h"
+using dd4hep::mm;
+
+//This function is only to check rInner of ECAL barrel
+LayeredCalorimeterData* getExtension(unsigned int includeFlag, unsigned int excludeFlag=0) {
+    LayeredCalorimeterData * theExtension = 0;
+    Detector & mainDetector = Detector::getInstance();
+    const vector<DetElement>& theDetectors = dd4hep::DetectorSelector(mainDetector).detectors(  includeFlag, excludeFlag );
+
+    if( theDetectors.size()  != 1 ){
+        stringstream es ;
+        es << " getExtension: selection is not unique (or empty)  includeFlag: " << DetType( includeFlag ) << " excludeFlag: " << DetType( excludeFlag )
+        << " --- found detectors : " ;
+        for( unsigned i=0, N= theDetectors.size(); i<N ; ++i ) es << theDetectors.at(i).name() << ", " ;
+        throw runtime_error( es.str() ) ;
+    }
+
+    theExtension = theDetectors.at(0).extension<LayeredCalorimeterData>();
+    return theExtension;
+}
 
 ExtractPFO aExtractPFO;
 
@@ -25,6 +57,12 @@ ExtractPFO::~ExtractPFO(){
 }
 
 void ExtractPFO::init(){
+    //This is only to check rInner of ECAL barrel
+    const LayeredCalorimeterData* eCalBarrelExtension = getExtension( (DetType::CALORIMETER|DetType::ELECTROMAGNETIC|DetType::BARREL), (DetType::AUXILIARY|DetType::FORWARD) );
+    const double rInner = eCalBarrelExtension->extent[0]/dd4hep::mm;
+
+
+    cout<<"Inner radius: "<<rInner<<endl;
     _nEvt = 0;
     _start = system_clock::now();
 
@@ -33,8 +71,9 @@ void ExtractPFO::init(){
     _tree = new TTree("PFO", "PFO parameters");
 
     _tree->Branch("charge", &_charge, "charge/F");
-    _tree->Branch("p", &_p, "p/D");
-    _tree->Branch("pt", &_pt, "pt/D");
+    _tree->Branch("px", &_px, "px/D");
+    _tree->Branch("py", &_py, "py/D");
+    _tree->Branch("pz", &_pz, "pz/D");
     _tree->Branch("nTracks", &_nTracks, "nTracks/I");
     _tree->Branch("nMC", &_nMC, "nMC/I");
     _tree->Branch("weightMC", &_weightMC);
@@ -44,8 +83,9 @@ void ExtractPFO::init(){
     _tree->Branch("yMC", &_yMC);
     _tree->Branch("zMC", &_zMC);
     _tree->Branch("tMC", &_tMC);
-    _tree->Branch("pMC", &_pMC);
-    _tree->Branch("ptMC", &_ptMC);
+    _tree->Branch("pxMC", &_pxMC, "pxMC/D");
+    _tree->Branch("pyMC", &_pyMC, "pyMC/D");
+    _tree->Branch("pzMC", &_pzMC, "pzMC/D");
     _tree->Branch("massMC", &_massMC);
     _tree->Branch("chargeMC", &_chargeMC);
 
@@ -82,8 +122,9 @@ void ExtractPFO::processEvent(LCEvent* evt){
         //Fill branch variables
         _charge = pfo->getCharge();
         const double* mom = pfo->getMomentum();
-        _p = sqrt(mom[0]*mom[0] + mom[1]*mom[1] + mom[2]*mom[2]);
-        _pt = sqrt(mom[0]*mom[0] + mom[1]*mom[1]);
+        _px = mom[0];
+        _py = mom[1];
+        _pz = mom[2];
 
         const vector <LCObject*>& relationObjects = relation.getRelatedToObjects(pfo);
         const vector <float>& relationWeights = relation.getRelatedToWeights(pfo);
@@ -99,8 +140,9 @@ void ExtractPFO::processEvent(LCEvent* evt){
             _zMC.push_back(pos[2]);
             _tMC.push_back(mcPFO->getTime());
             const double* momMC = mcPFO->getMomentum();
-            _pMC.push_back(sqrt(momMC[0]*momMC[0] + momMC[1]*momMC[1] + momMC[2]*momMC[2]));
-            _ptMC.push_back(sqrt(momMC[0]*momMC[0] + momMC[1]*momMC[1]));
+            _pxMC.push_back(momMC[0]);
+            _pyMC.push_back(momMC[1]);
+            _pzMC.push_back(momMC[2]);
             _massMC.push_back(mcPFO->getMass());
             _chargeMC.push_back(mcPFO->getCharge());
 
@@ -122,8 +164,9 @@ void ExtractPFO::processEvent(LCEvent* evt){
         _yMC.clear();
         _zMC.clear();
         _tMC.clear();
-        _pMC.clear();
-        _ptMC.clear();
+        _pxMC.clear();
+        _pyMC.clear();
+        _pzMC.clear();
         _massMC.clear();
         _chargeMC.clear();
 
