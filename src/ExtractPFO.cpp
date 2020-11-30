@@ -21,9 +21,7 @@ using dd4hep::rec::LayeredCalorimeterData;
 #include "DD4hep/Detector.h"
 #include <DD4hep/DetType.h>
 using dd4hep::Detector, dd4hep::DetType, dd4hep::DetElement;
-
 #include "DD4hep/DetectorSelector.h"
-
 #include "DD4hep/DD4hepUnits.h"
 using dd4hep::mm;
 
@@ -60,9 +58,8 @@ void ExtractPFO::init(){
     //This is only to check rInner of ECAL barrel
     const LayeredCalorimeterData* eCalBarrelExtension = getExtension( (DetType::CALORIMETER|DetType::ELECTROMAGNETIC|DetType::BARREL), (DetType::AUXILIARY|DetType::FORWARD) );
     const double rInner = eCalBarrelExtension->extent[0]/dd4hep::mm;
-
-
     cout<<"Inner radius: "<<rInner<<endl;
+
     _nEvt = 0;
     _start = system_clock::now();
 
@@ -83,9 +80,9 @@ void ExtractPFO::init(){
     _tree->Branch("yMC", &_yMC);
     _tree->Branch("zMC", &_zMC);
     _tree->Branch("tMC", &_tMC);
-    _tree->Branch("pxMC", &_pxMC, "pxMC/D");
-    _tree->Branch("pyMC", &_pyMC, "pyMC/D");
-    _tree->Branch("pzMC", &_pzMC, "pzMC/D");
+    _tree->Branch("pxMC", &_pxMC);
+    _tree->Branch("pyMC", &_pyMC);
+    _tree->Branch("pzMC", &_pzMC);
     _tree->Branch("massMC", &_massMC);
     _tree->Branch("chargeMC", &_chargeMC);
 

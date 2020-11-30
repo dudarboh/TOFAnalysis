@@ -43,6 +43,7 @@ protected:
     vector <float> _y;
     vector <float> _z;
     vector <float> _t;
+    vector <float> _tMCFastest;
     vector <int> _layer;
 
 };

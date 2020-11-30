@@ -12,6 +12,11 @@ using EVENT::ReconstructedParticle;
 // CHT class
 #include "marlinutil/CalorimeterHitType.h"
 
+#include <EVENT/SimCalorimeterHit.h>
+using EVENT::SimCalorimeterHit;
+
+#include <UTIL/LCRelationNavigator.h>
+
 ExtractCalorimeterHits aExtractCalorimeterHits;
 
 ExtractCalorimeterHits::ExtractCalorimeterHits() : Processor("ExtractCalorimeterHits"){
@@ -35,6 +40,7 @@ void ExtractCalorimeterHits::init(){
     _tree->Branch("y", &_y);
     _tree->Branch("z", &_z);
     _tree->Branch("t", &_t);
+    _tree->Branch("tMCFastest", &_tMCFastest);
     _tree->Branch("layer", &_layer);
 
 }
@@ -42,6 +48,8 @@ void ExtractCalorimeterHits::init(){
 void ExtractCalorimeterHits::processEvent(LCEvent* evt){
     ++_nEvt;
     LCCollection* colPFO = evt->getCollection("PandoraPFOs");
+    LCCollection* colRelationBarrel = evt->getCollection("EcalBarrelRelationsSimRec");
+    LCRelationNavigator relationBarrel(colRelationBarrel);
 
     for (int i=0; i<colPFO->getNumberOfElements(); ++i){
         ReconstructedParticle* pfo = dynamic_cast<ReconstructedParticle*>(colPFO->getElementAt(i));
@@ -57,13 +65,26 @@ void ExtractCalorimeterHits::processEvent(LCEvent* evt){
             CHT hitType( hit->getType() );
             bool isEcal = (hitType.caloID() == CHT::ecal);
             if (!isEcal) continue;
-
             const float* pos = hit->getPosition();
             _x.push_back(pos[0]);
             _y.push_back(pos[1]);
             _z.push_back(pos[2]);
             _t.push_back(hit->getTime());
             _layer.push_back(hitType.layer());
+
+            vector <LCObject*> relationObjects = relationBarrel.getRelatedToObjects(hit);
+            // If it is not barrel just store 0
+            if (relationObjects.size() == 0){
+                _tMCFastest.push_back(0.);
+                continue;
+            }
+            vector <float> timeVec;
+            for (size_t j = 0; j < relationObjects.size(); ++j){
+                SimCalorimeterHit* mcHit = dynamic_cast<SimCalorimeterHit*>(relationObjects[j]);
+                int nConts = mcHit->getNMCContributions();
+                for (int k = 0; k < nConts; ++k) timeVec.push_back(mcHit->getTimeCont(k));
+            }
+            _tMCFastest.push_back(*min_element(timeVec.begin(), timeVec.end()));
         }
         _nHits = _x.size();
         _tree->Fill();
@@ -74,6 +95,7 @@ void ExtractCalorimeterHits::processEvent(LCEvent* evt){
         _z.clear();
         _t.clear();
         _layer.clear();
+        _tMCFastest.clear();
     } // end of PFOs loop
 }
 
