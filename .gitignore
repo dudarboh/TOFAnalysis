@@ -3,3 +3,4 @@ lib/
 doc/*
 !doc/Doxyfile
 *.png
+analysis/images
