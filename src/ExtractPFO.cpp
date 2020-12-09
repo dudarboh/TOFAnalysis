@@ -1,34 +1,22 @@
-#include "ExtractPFO.h"
-
-// #include <iostream>
-using std::cout, std::endl, std::stringstream, std::runtime_error;
-
+#include "ExtractPFO.hpp"
 #include "EVENT/LCCollection.h"
-using EVENT::LCCollection;
 #include "EVENT/ReconstructedParticle.h"
-using EVENT::ReconstructedParticle;
-
-#include <EVENT/MCParticle.h>
-using EVENT::MCParticle;
-
-#include <UTIL/LCRelationNavigator.h>
-
-
-//This part to get inner radius of ECAL
-#include <DDRec/DetectorData.h>
-using dd4hep::rec::LayeredCalorimeterData;
-
+#include "EVENT/MCParticle.h"
+#include "UTIL/LCRelationNavigator.h"
+#include "DDRec/DetectorData.h"
 #include "DD4hep/Detector.h"
-#include <DD4hep/DetType.h>
-using dd4hep::Detector, dd4hep::DetType, dd4hep::DetElement;
+#include "DD4hep/DetType.h"
 #include "DD4hep/DetectorSelector.h"
 #include "DD4hep/DD4hepUnits.h"
-using dd4hep::mm;
+using EVENT::LCCollection, EVENT::ReconstructedParticle, EVENT::MCParticle;
+using dd4hep::rec::LayeredCalorimeterData;
+using dd4hep::Detector, dd4hep::DetType, dd4hep::DetElement, dd4hep::mm;
+using std::cout, std::endl, std::stringstream, std::runtime_error;
+
 
 //This function is only to check rInner of ECAL barrel
 LayeredCalorimeterData* getExtension(unsigned int includeFlag, unsigned int excludeFlag=0) {
-    LayeredCalorimeterData * theExtension = 0;
-    Detector & mainDetector = Detector::getInstance();
+    Detector& mainDetector = Detector::getInstance();
     const vector<DetElement>& theDetectors = dd4hep::DetectorSelector(mainDetector).detectors(  includeFlag, excludeFlag );
 
     if( theDetectors.size()  != 1 ){
@@ -38,20 +26,13 @@ LayeredCalorimeterData* getExtension(unsigned int includeFlag, unsigned int excl
         for( unsigned i=0, N= theDetectors.size(); i<N ; ++i ) es << theDetectors.at(i).name() << ", " ;
         throw runtime_error( es.str() ) ;
     }
-
-    theExtension = theDetectors.at(0).extension<LayeredCalorimeterData>();
-    return theExtension;
+    return theDetectors.at(0).extension<LayeredCalorimeterData>();
 }
 
 ExtractPFO aExtractPFO;
 
 ExtractPFO::ExtractPFO() : Processor("ExtractPFO"){
     registerProcessorParameter(string("outputFile"), string("Name of the output root file"), _outputFileName, string("PFO.root"));
-}
-
-ExtractPFO::~ExtractPFO(){
-    delete _tree;
-    delete _file;
 }
 
 void ExtractPFO::init(){
@@ -63,29 +44,20 @@ void ExtractPFO::init(){
     _nEvt = 0;
     _start = system_clock::now();
 
-    _file = new TFile(_outputFileName.c_str(), "RECREATE");
+    _file.reset(new TFile(_outputFileName.c_str(), "RECREATE"));
+    _tree.reset(new TTree("PFO", "Pandora PFO properties"));
 
-    _tree = new TTree("PFO", "PFO parameters");
+    _tree->Branch("pReco", &_pReco);
+    _tree->Branch("charge", &_charge);
+    _tree->Branch("nTracks", &_nTracks);
 
-    _tree->Branch("charge", &_charge, "charge/F");
-    _tree->Branch("px", &_px, "px/D");
-    _tree->Branch("py", &_py, "py/D");
-    _tree->Branch("pz", &_pz, "pz/D");
-    _tree->Branch("nTracks", &_nTracks, "nTracks/I");
-    _tree->Branch("nMC", &_nMC, "nMC/I");
+    _tree->Branch("nMC", &_nMC);
     _tree->Branch("weightMC", &_weightMC);
-    _tree->Branch("energyMC", &_energyMC);
     _tree->Branch("PDG", &_PDG);
-    _tree->Branch("xMC", &_xMC);
-    _tree->Branch("yMC", &_yMC);
-    _tree->Branch("zMC", &_zMC);
-    _tree->Branch("tMC", &_tMC);
-    _tree->Branch("pxMC", &_pxMC);
-    _tree->Branch("pyMC", &_pyMC);
-    _tree->Branch("pzMC", &_pzMC);
-    _tree->Branch("massMC", &_massMC);
     _tree->Branch("chargeMC", &_chargeMC);
-
+    _tree->Branch("mMC", &_mMC);
+    _tree->Branch("vtxMC", &_vtxMC);
+    _tree->Branch("pMC", &_pMC);
     _tree->Branch("isCreatedInSimulation", &_isCreatedInSimulation);
     _tree->Branch("isBackscatter", &_isBackscatter);
     _tree->Branch("vertexIsNotEndpointOfParent", &_vertexIsNotEndpointOfParent);
@@ -104,45 +76,36 @@ void ExtractPFO::processEvent(LCEvent* evt){
     }
 
     LCCollection* colPFO = evt->getCollection("PandoraPFOs");
-
     LCCollection* colRelation = evt->getCollection("RecoMCTruthLink");
     LCRelationNavigator relation(colRelation);
 
     for (int i=0; i<colPFO->getNumberOfElements(); ++i){
-        ReconstructedParticle* pfo = dynamic_cast<ReconstructedParticle*>(colPFO->getElementAt(i));
+        ReconstructedParticle* pfo = dynamic_cast <ReconstructedParticle*> ( colPFO->getElementAt(i) );
         int nClusters = pfo->getClusters().size();
         _nTracks = pfo->getTracks().size();
 
         // Only simple cases of PFOs
         if( nClusters != 1 || _nTracks > 1) continue;
 
-        //Fill branch variables
-        _charge = pfo->getCharge();
         const double* mom = pfo->getMomentum();
-        _px = mom[0];
-        _py = mom[1];
-        _pz = mom[2];
+        _pReco = PxPyPzEVector(mom[0], mom[1], mom[2], pfo->getEnergy());
+        _charge = pfo->getCharge();
 
         const vector <LCObject*>& relationObjects = relation.getRelatedToObjects(pfo);
         const vector <float>& relationWeights = relation.getRelatedToWeights(pfo);
+
         _nMC = relationObjects.size();
         for(int j=0; j<_nMC; ++j){
-            MCParticle* mcPFO = dynamic_cast<MCParticle*> (relationObjects[j]);
-            _weightMC.push_back(relationWeights[j]);
-            _energyMC.push_back(mcPFO->getEnergy());
-            _PDG.push_back(mcPFO->getPDG());
-            const double* pos = mcPFO->getVertex();
-            _xMC.push_back(pos[0]);
-            _yMC.push_back(pos[1]);
-            _zMC.push_back(pos[2]);
-            _tMC.push_back(mcPFO->getTime());
+            _weightMC.push_back( relationWeights[j] );
+            MCParticle* mcPFO = dynamic_cast <MCParticle*> ( relationObjects[j] );
+            const double* vtx = mcPFO->getVertex();
             const double* momMC = mcPFO->getMomentum();
-            _pxMC.push_back(momMC[0]);
-            _pyMC.push_back(momMC[1]);
-            _pzMC.push_back(momMC[2]);
-            _massMC.push_back(mcPFO->getMass());
-            _chargeMC.push_back(mcPFO->getCharge());
 
+            _vtxMC.push_back( XYZTVector(vtx[0], vtx[1], vtx[2], mcPFO->getTime()) );
+            _pMC.push_back( PxPyPzEVector(momMC[0], momMC[1], momMC[2], mcPFO->getEnergy()) );
+            _PDG.push_back( mcPFO->getPDG() );
+            _mMC.push_back(mcPFO->getMass());
+            _chargeMC.push_back(mcPFO->getCharge());
             _isCreatedInSimulation.push_back(mcPFO->isCreatedInSimulation());
             _isBackscatter.push_back(mcPFO->isBackscatter());
             _vertexIsNotEndpointOfParent.push_back(mcPFO->vertexIsNotEndpointOfParent());
@@ -155,16 +118,10 @@ void ExtractPFO::processEvent(LCEvent* evt){
         _tree->Fill();
 
         _weightMC.clear();
-        _energyMC.clear();
+        _vtxMC.clear();
+        _pMC.clear();
         _PDG.clear();
-        _xMC.clear();
-        _yMC.clear();
-        _zMC.clear();
-        _tMC.clear();
-        _pxMC.clear();
-        _pyMC.clear();
-        _pzMC.clear();
-        _massMC.clear();
+        _mMC.clear();
         _chargeMC.clear();
 
         _isCreatedInSimulation.clear();

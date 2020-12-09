@@ -5,7 +5,6 @@ using namespace ROOT::VecOps;
 #include "DDRec/Vector3D.h"
 using dd4hep::rec::Vector3D;
 const double PI = 3.14159265;
-// const double PI = 3.141592653589793238462643383279502884;
 const double rInner = 1804.8;
 const double c = 299.792458;
 std::default_random_engine generator;
@@ -22,54 +21,6 @@ struct Hit{
         t(t_hit), r(r_hit), d(d_hit), layer(layer_hit){}
 };
 
-
-// Almost obsolete methods
-double line(double x, double x1, double x2, double y1, double y2){
-    return y1 + (y2-y1)/(x2-x1) * (x - x1);
-}
-
-double track_len(double phi1, double phi2, double omega1, double omega2, double lambda1, double lambda2){
-    int nPoints = 10000;
-    double h = abs(phi2-phi1)/nPoints;
-    // Calculate func values at points
-    double func[nPoints+1];
-    for (int i = 0; i < nPoints+1; ++i) {
-        double phi = phi1 + 1.*i/nPoints*(phi2-phi1);
-        double omega = line(phi, phi1, phi2, omega1, omega2);
-        double lambda = line(phi, phi1, phi2, lambda1, lambda2);
-        func[i] = abs(1./omega) * sqrt(1. + lambda*lambda);
-    }
-
-    // Calculate integral by Simpsons formula
-    double result = 0.;
-    for (int i = 1; i < nPoints; i+=2) result += func[i-1] + 4*func[i] + func[i+1];
-    return h/3. * result;
-}
-
-RVec <double> rFunc(const RVec <float>& x, const RVec <float>& y, const RVec <float>& z, float x0, float y0, float z0){
-    RVec <double> rVec;
-    for (size_t i = 0; i < x.size(); ++i) {
-        rVec.push_back(sqrt((x[i]-x0)*(x[i]-x0) + (y[i]-y0)*(y[i]-y0) + (z[i]-z0)*(z[i]-z0)));
-    }
-    return rVec;
-}
-
-
-double tof_closest(const RVec<double> &t_hit, const RVec<double> &r_hit){
-    int min_idx = min_element(r_hit.begin(), r_hit.end()) - r_hit.begin();
-    // double tof = t_hit[min_idx];
-    double tof = t_hit[min_idx] - r_hit[min_idx]/c;
-    if (tof <= 0.) return 0.;
-    return tof;
-}
-
-double tof_fastest(const RVec<double> &t_hit, const RVec<double> &r_hit){
-    int min_idx = min_element(t_hit.begin(), t_hit.end()) - t_hit.begin();
-    // double tof = t_hit[min_idx];
-    double tof = t_hit[min_idx] - r_hit[min_idx]/c;
-    if (tof <= 0.) return 0.;
-    return tof;
-}
 
 double dToRef_fastest(const RVec<double> &t_hit, const RVec<double> &r_hit){
     int min_idx = min_element(t_hit.begin(), t_hit.end()) - t_hit.begin();
@@ -100,28 +51,6 @@ RVec <double> smear_time(const RVec<double> &t_hit){
 }
 
 
-// Franks Average
-double tof_avg(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<double> &d_hit, const RVec<int> &layer_hit, int n_layers=10){
-    int n_hits = t_hit.size();
-    map <int, vector <Hit> > layer_hits;
-    for (int i=0; i < n_hits; ++i){
-        Hit hit(t_hit[i], r_hit[i], d_hit[i], layer_hit[i]);
-        if (hit.layer < n_layers) layer_hits[hit.layer].push_back(hit);
-    }
-    int n_tofs = 0;
-    double sum_tof = 0.;
-    for (int layer=0; layer<n_layers; ++layer){
-        vector <Hit>& arr = layer_hits[layer];
-        if (arr.size() == 0) continue;
-        Hit closest_hit = *min_element(layer_hits[layer].begin(), layer_hits[layer].end(), [](const Hit &hit1, const Hit &hit2){return hit1.d < hit2.d;} );
-        double closest_time = closest_hit.t - closest_hit.r/c;
-        sum_tof += closest_time;
-        ++n_tofs;
-    }
-    double tof = sum_tof/n_tofs;
-    if (tof <= 0.) return 0.;
-    return tof;
-}
 
 
 RVec <double> dToLine(const RVec <float>& x, const RVec <float>& y, const RVec <float>& z,
@@ -156,48 +85,6 @@ RVec <double> dToRef(const RVec <float>& x, const RVec <float>& y, const RVec <f
     return distance;
 }
 
-
-double tof_fit(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<double> &d_hit, const RVec<int> &layer_hit, int n_layers=10, double d_cut=9999.){
-    // Get Franks layer hits
-    int n_hits = t_hit.size();
-    map <int, vector <Hit> > layer_hits;
-    for (int i=0; i < n_hits; ++i){
-        Hit hit(t_hit[i], r_hit[i], d_hit[i], layer_hit[i]);
-        if (hit.layer < n_layers) layer_hits[hit.layer].push_back(hit);
-    }
-    // TCanvas canvas_debug;
-
-    vector<Hit> selected_hits;
-    for (int layer=0; layer<n_layers; ++layer){
-        vector <Hit>& arr = layer_hits[layer];
-        if (arr.size() == 0) continue;
-        Hit closest_hit = *min_element(layer_hits[layer].begin(), layer_hits[layer].end(), [](const Hit &hit1, const Hit &hit2){return hit1.d < hit2.d;} );
-        if (closest_hit.d > d_cut) continue;
-        selected_hits.push_back(closest_hit);
-    }
-
-    const int n_sel_hits = selected_hits.size();
-    if (n_sel_hits <= 1) return -999.;
-
-    double r[n_sel_hits];
-    double t[n_sel_hits];
-    double r_err[n_sel_hits];
-    double t_err[n_sel_hits];
-    for(int i=0; i < n_sel_hits; ++i){
-        r[i] = selected_hits[i].r;
-        t[i] = selected_hits[i].t;
-        r_err[i] = 0.;
-        t_err[i] = 0.1;
-    }
-    TGraphErrors gr(n_sel_hits, r, t, r_err, t_err);
-
-    gr.Fit("pol1", "Q");
-    TF1 fit = *gr.GetFunction("pol1");
-    // if (fit.GetChisquare() > 1.) continue;
-    double tof = fit.GetParameter(0);
-    if (tof <= 0.) return -999.;
-    return tof;
-}
 
 
 
@@ -382,13 +269,24 @@ int fit_plot(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<do
     return true;
 }
 
-double tof_fit_cyl(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<double> &d_hit, const RVec<int> &layer_hit, int n_layers=10){
+
+double tof_chi2(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<double> &d_hit, const RVec<int> &layer_hit, int n_layers=10, double d_cut=9999.){
+    // Get Franks layer hits
     int n_hits = t_hit.size();
-    vector<Hit> selected_hits;
+    map <int, vector <Hit> > layer_hits;
     for (int i=0; i < n_hits; ++i){
         Hit hit(t_hit[i], r_hit[i], d_hit[i], layer_hit[i]);
-        if (hit.d > 4) continue;
-        selected_hits.push_back(hit);
+        if (hit.layer < n_layers) layer_hits[hit.layer].push_back(hit);
+    }
+    // TCanvas canvas_debug;
+
+    vector<Hit> selected_hits;
+    for (int layer=0; layer<n_layers; ++layer){
+        vector <Hit>& arr = layer_hits[layer];
+        if (arr.size() == 0) continue;
+        Hit closest_hit = *min_element(layer_hits[layer].begin(), layer_hits[layer].end(), [](const Hit &hit1, const Hit &hit2){return hit1.d < hit2.d;} );
+        if (closest_hit.d > d_cut) continue;
+        selected_hits.push_back(closest_hit);
     }
 
     const int n_sel_hits = selected_hits.size();
@@ -402,14 +300,66 @@ double tof_fit_cyl(const RVec<double> &t_hit, const RVec<double> &r_hit, const R
         r[i] = selected_hits[i].r;
         t[i] = selected_hits[i].t;
         r_err[i] = 0.;
-        t_err[i] = 0.1;
+        t_err[i] = 0.01;
     }
     TGraphErrors gr(n_sel_hits, r, t, r_err, t_err);
 
     gr.Fit("pol1", "Q");
     TF1 fit = *gr.GetFunction("pol1");
-    // if (fit.GetChisquare() > 1.) continue;
-    double tof = fit.GetParameter(0);
-    if (tof <= 0.) return -999.;
-    return tof;
+    return fit.GetChisquare()/fit.GetNDF();
+}
+
+RVec<double> residual(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<double> &d_hit, const RVec<int> &layer_hit, int n_layers=10, double d_cut=9999.){
+    // Get Franks layer hits
+    int n_hits = t_hit.size();
+    map <int, vector <Hit> > layer_hits;
+    for (int i=0; i < n_hits; ++i){
+        Hit hit(t_hit[i], r_hit[i], d_hit[i], layer_hit[i]);
+        if (hit.layer < n_layers) layer_hits[hit.layer].push_back(hit);
+    }
+    // TCanvas canvas_debug;
+
+    vector<Hit> selected_hits;
+    for (int layer=0; layer<n_layers; ++layer){
+        vector <Hit>& arr = layer_hits[layer];
+        if (arr.size() == 0) continue;
+        Hit closest_hit = *min_element(layer_hits[layer].begin(), layer_hits[layer].end(), [](const Hit &hit1, const Hit &hit2){return hit1.d < hit2.d;} );
+        if (closest_hit.d > d_cut) continue;
+        selected_hits.push_back(closest_hit);
+    }
+
+    const int n_sel_hits = selected_hits.size();
+    if (n_sel_hits <= 1) return {};
+
+    double r[n_sel_hits];
+    double t[n_sel_hits];
+    double r_err[n_sel_hits];
+    double t_err[n_sel_hits];
+    for(int i=0; i < n_sel_hits; ++i){
+        r[i] = selected_hits[i].r;
+        t[i] = selected_hits[i].t;
+        r_err[i] = 0.;
+        t_err[i] = 0.01;
+    }
+    TGraphErrors gr(n_sel_hits, r, t, r_err, t_err);
+
+    gr.Fit("pol1", "Q");
+    TF1 fit = *gr.GetFunction("pol1");
+
+    RVec<double> residuals;
+
+    for(int i=0; i < n_sel_hits; ++i) residuals.push_back(t[i] - fit.Eval(r[i]));
+
+    return residuals;
+}
+
+////////////////////// There are so many things on top, so I start a new section where I try to be more pedantic with my code *_*
+
+RVec <Hit> class_test(const RVec<double> &t_hit, const RVec<double> &r_hit, const RVec<double> &d_hit, const RVec<int> &layer_hit){
+    int n_hits = t_hit.size();
+    RVec <Hit> hits;
+    for (int i=0; i < n_hits; ++i){
+        hits.push_back(Hit(t_hit[i], r_hit[i], d_hit[i], layer_hit[i]));
+    }
+    return hits;
 }

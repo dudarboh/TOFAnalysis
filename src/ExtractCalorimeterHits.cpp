@@ -1,21 +1,14 @@
 
-#include "ExtractCalorimeterHits.h"
-
-#include <iostream>
-using std::cout, std::endl;
+#include "ExtractCalorimeterHits.hpp"
 
 #include "EVENT/LCCollection.h"
-using EVENT::LCCollection;
 #include "EVENT/ReconstructedParticle.h"
-using EVENT::ReconstructedParticle;
-
-// CHT class
-#include "marlinutil/CalorimeterHitType.h"
-
 #include <EVENT/SimCalorimeterHit.h>
-using EVENT::SimCalorimeterHit;
-
 #include <UTIL/LCRelationNavigator.h>
+#include "marlinutil/CalorimeterHitType.h"
+using EVENT::LCCollection, EVENT::ReconstructedParticle, EVENT::SimCalorimeterHit;
+using std::cout, std::endl;
+
 
 ExtractCalorimeterHits aExtractCalorimeterHits;
 
@@ -23,26 +16,18 @@ ExtractCalorimeterHits::ExtractCalorimeterHits() : Processor("ExtractCalorimeter
     registerProcessorParameter(string("outputFile"), string("Name of the output root file"), _outputFileName, string("CalorimeterHits.root"));
 }
 
-ExtractCalorimeterHits::~ExtractCalorimeterHits(){
-    delete _tree;
-    delete _file;
-}
 
 void ExtractCalorimeterHits::init(){
     _nEvt = 0;
     _start = system_clock::now();
 
-    _file = new TFile(_outputFileName.c_str(), "RECREATE");
-    _tree = new TTree("ECALHits", "Tree with ECAL hits");
+    _file.reset( new TFile(_outputFileName.c_str(), "RECREATE") );
+    _tree.reset( new TTree("ECALHits", "Tree with ECAL hits") );
 
-    _tree->Branch("nHits", &_nHits, "nHits/I");
-    _tree->Branch("x", &_x);
-    _tree->Branch("y", &_y);
-    _tree->Branch("z", &_z);
-    _tree->Branch("t", &_t);
-    _tree->Branch("tMCFastest", &_tMCFastest);
+    _tree->Branch("nHits", &_nHits);
+    _tree->Branch("pos", &_pos);
     _tree->Branch("layer", &_layer);
-
+    _tree->Branch("energy", &_energy);
 }
 
 void ExtractCalorimeterHits::processEvent(LCEvent* evt){
@@ -66,36 +51,16 @@ void ExtractCalorimeterHits::processEvent(LCEvent* evt){
             bool isEcal = (hitType.caloID() == CHT::ecal);
             if (!isEcal) continue;
             const float* pos = hit->getPosition();
-            _x.push_back(pos[0]);
-            _y.push_back(pos[1]);
-            _z.push_back(pos[2]);
-            _t.push_back(hit->getTime());
+            _pos.push_back( XYZTVector(pos[0], pos[1], pos[2], hit->getTime()) );
             _layer.push_back(hitType.layer());
-
-            vector <LCObject*> relationObjects = relationBarrel.getRelatedToObjects(hit);
-            // If it is not barrel just store 0
-            if (relationObjects.size() == 0){
-                _tMCFastest.push_back(0.);
-                continue;
-            }
-            vector <float> timeVec;
-            for (size_t j = 0; j < relationObjects.size(); ++j){
-                SimCalorimeterHit* mcHit = dynamic_cast<SimCalorimeterHit*>(relationObjects[j]);
-                int nConts = mcHit->getNMCContributions();
-                for (int k = 0; k < nConts; ++k) timeVec.push_back(mcHit->getTimeCont(k));
-            }
-            _tMCFastest.push_back(*min_element(timeVec.begin(), timeVec.end()));
+            _energy.push_back(hit->getEnergy());
         }
-        _nHits = _x.size();
+        _nHits = _pos.size();
         _tree->Fill();
 
-        //Clear all the vectors before next PFO
-        _x.clear();
-        _y.clear();
-        _z.clear();
-        _t.clear();
+        _pos.clear();
         _layer.clear();
-        _tMCFastest.clear();
+        _energy.clear();
     } // end of PFOs loop
 }
 

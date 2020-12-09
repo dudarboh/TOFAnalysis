@@ -5,23 +5,24 @@
     @brief ExtractCluster class for extracting tracker hits from slcio to root file
 */
 
-#ifndef ExtractCluster_h
-#define ExtractCluster_h 1
+#ifndef ExtractCluster_hpp
+#define ExtractCluster_hpp 1
 
 #include "TFile.h"
 #include "TTree.h"
+#include "Math/Point3D.h"
 #include "marlin/Processor.h"
 #include <chrono>
 #include <vector>
 #include <string>
 using marlin::Processor;
+using namespace ROOT::Math;
 using namespace std::chrono;
-using std::vector, std::string;
+using std::vector, std::string, std::unique_ptr;
 
 class ExtractCluster : public Processor {
 public:
     ExtractCluster();
-    ~ExtractCluster();
 
     Processor* newProcessor() {return new ExtractCluster;}
     void init();
@@ -34,13 +35,11 @@ protected:
     time_point <system_clock> _start;
 
     string _outputFileName;
-    TFile* _file;
-    TTree* _tree;
+    unique_ptr<TFile> _file;
+    unique_ptr<TTree> _tree;
 
     float _energy;
-    float _x;
-    float _y;
-    float _z;
+    XYZPoint _pos;
     // These phi and theta define direction of the shower development.
     // Not its position!
     float _phi;

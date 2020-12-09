@@ -18,8 +18,8 @@
 	<execute>
         <processor name="InitDD4hep" />
 
-        <!-- <processor name="MyRefitProcessorKaon"/> -->
-        <!-- <processor name="MyRefitProcessorProton"/> -->
+        <!-- <processor name="MyRefitProcessorKaon"/>
+        <processor name="MyRefitProcessorProton"/> -->
 
         <processor name="MyExtractPFO"/>
         <processor name="MyExtractCluster"/>

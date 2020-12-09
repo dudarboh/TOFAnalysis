@@ -1,7 +1,4 @@
-#include "ExtractTrack.h"
-
-// #include <iostream>
-using std::cout, std::endl;
+#include "ExtractTrack.hpp"
 
 //TPC radii
 #include "DD4hep/Detector.h"
@@ -9,11 +6,12 @@ using std::cout, std::endl;
 using dd4hep::Detector, dd4hep::tesla;
 
 #include "EVENT/LCCollection.h"
-using EVENT::LCCollection;
 #include "EVENT/ReconstructedParticle.h"
-using EVENT::ReconstructedParticle;
-
 #include "HelixClass.h"
+using EVENT::LCCollection;
+using EVENT::ReconstructedParticle;
+using std::cout, std::endl;
+
 
 ExtractTrack aExtractTrack;
 
@@ -22,70 +20,51 @@ ExtractTrack::ExtractTrack() : Processor("ExtractTrack"){
     registerProcessorParameter(string("massAssumption"), string("Write track parameters of a fit that assumed this mass"), _massAssumption, string("Pion"));
 }
 
-ExtractTrack::~ExtractTrack(){
-    delete _tree;
-    delete _file;
-}
-
 void ExtractTrack::init(){
     _nEvt = 0;
     _start = system_clock::now();
 
     string fileName = _massAssumption + _outputFileName;
-    _file = new TFile(fileName.c_str(), "RECREATE");
-
+    _file.reset( new TFile(fileName.c_str(), "RECREATE") );
     string treeName = _massAssumption + "Track";
-    _tree = new TTree(treeName.c_str(), "Track fit parameters");
+    _tree.reset( new TTree(treeName.c_str(), "Track fit parameters") );
 
-    _tree->Branch("chi2", &_chi2, "chi2/F");
-    _tree->Branch("ndf", &_ndf, "ndf/I");
-    _tree->Branch("dEdX", &_dEdX, "dEdX/F");
-
-    _tree->Branch("px", &_px[0], "px/F");
-    _tree->Branch("py", &_py[0], "py/F");
-    _tree->Branch("pz", &_pz[0], "pz/F");
-    _tree->Branch("d0", &_d0[0], "d0/F");
-    _tree->Branch("phi", &_phi[0], "phi/F");
-    _tree->Branch("omega", &_omega[0], "omega/F");
-    _tree->Branch("z0", &_z0[0], "z0/F");
-    _tree->Branch("tanL", &_tanL[0], "tanL/F");
+    _tree->Branch("chi2", &_chi2);
+    _tree->Branch("ndf", &_ndf);
+    _tree->Branch("dEdX", &_dEdX);
 
     //Track states
-    _tree->Branch("pxFirstHit", &_px[1], "pxFirstHit/F");
-    _tree->Branch("pyFirstHit", &_py[1], "pyFirstHit/F");
-    _tree->Branch("pzFirstHit", &_pz[1], "pzFirstHit/F");
-    _tree->Branch("d0FirstHit", &_d0[1], "d0FirstHit/F");
-    _tree->Branch("phiFirstHit", &_phi[1], "phiFirstHit/F");
-    _tree->Branch("omegaFirstHit", &_omega[1], "omegaFirstHit/F");
-    _tree->Branch("z0FirstHit", &_z0[1], "z0FirstHit/F");
-    _tree->Branch("tanLFirstHit", &_tanL[1], "tanLFirstHit/F");
-    _tree->Branch("xRefFirstHit", &_xRef[1], "xRefFirstHit/F");
-    _tree->Branch("yRefFirstHit", &_yRef[1], "yRefFirstHit/F");
-    _tree->Branch("zRefFirstHit", &_zRef[1], "zRefFirstHit/F");
+    _tree->Branch("pIP", &_p[0]);
+    _tree->Branch("refIP", &_ref[0]);
+    _tree->Branch("d0IP", &_d0[0]);
+    _tree->Branch("phiIP", &_phi[0]);
+    _tree->Branch("omegaIP", &_omega[0]);
+    _tree->Branch("z0IP", &_z0[0]);
+    _tree->Branch("tanLIP", &_tanL[0]);
 
-    _tree->Branch("pxLastHit", &_px[2], "pxLastHit/F");
-    _tree->Branch("pyLastHit", &_py[2], "pyLastHit/F");
-    _tree->Branch("pzLastHit", &_pz[2], "pzLastHit/F");
-    _tree->Branch("d0LastHit", &_d0[2], "d0LastHit/F");
-    _tree->Branch("phiLastHit", &_phi[2], "phiLastHit/F");
-    _tree->Branch("omegaLastHit", &_omega[2], "omegaLastHit/F");
-    _tree->Branch("z0LastHit", &_z0[2], "z0LastHit/F");
-    _tree->Branch("tanLLastHit", &_tanL[2], "tanLLastHit/F");
-    _tree->Branch("xRefLastHit", &_xRef[2], "xRefLastHit/F");
-    _tree->Branch("yRefLastHit", &_yRef[2], "yRefLastHit/F");
-    _tree->Branch("zRefLastHit", &_zRef[2], "zRefLastHit/F");
+    _tree->Branch("pFirst", &_p[1]);
+    _tree->Branch("refFirst", &_ref[1]);
+    _tree->Branch("d0First", &_d0[1]);
+    _tree->Branch("phiFirst", &_phi[1]);
+    _tree->Branch("omegaFirst", &_omega[1]);
+    _tree->Branch("z0First", &_z0[1]);
+    _tree->Branch("tanLFirst", &_tanL[1]);
 
-    _tree->Branch("pxCalState", &_px[3], "pxCalState/F");
-    _tree->Branch("pyCalState", &_py[3], "pyCalState/F");
-    _tree->Branch("pzCalState", &_pz[3], "pzCalState/F");
-    _tree->Branch("d0CalState", &_d0[3], "d0CalState/F");
-    _tree->Branch("phiCalState", &_phi[3], "phiCalState/F");
-    _tree->Branch("omegaCalState", &_omega[3], "omegaCalState/F");
-    _tree->Branch("z0CalState", &_z0[3], "z0CalState/F");
-    _tree->Branch("tanLCalState", &_tanL[3], "tanLCalState/F");
-    _tree->Branch("xRefCalState", &_xRef[3], "xRefCalState/F");
-    _tree->Branch("yRefCalState", &_yRef[3], "yRefCalState/F");
-    _tree->Branch("zRefCalState", &_zRef[3], "zRefCalState/F");
+    _tree->Branch("pLast", &_p[2]);
+    _tree->Branch("refLast", &_ref[2]);
+    _tree->Branch("d0Last", &_d0[2]);
+    _tree->Branch("phiLast", &_phi[2]);
+    _tree->Branch("omegaLast", &_omega[2]);
+    _tree->Branch("z0Last", &_z0[2]);
+    _tree->Branch("tanLLast", &_tanL[2]);
+
+    _tree->Branch("pCalo", &_p[3]);
+    _tree->Branch("refCalo", &_ref[3]);
+    _tree->Branch("d0Calo", &_d0[3]);
+    _tree->Branch("phiCalo", &_phi[3]);
+    _tree->Branch("omegaCalo", &_omega[3]);
+    _tree->Branch("z0Calo", &_z0[3]);
+    _tree->Branch("tanLCalo", &_tanL[3]);
 
     const Detector& detector = Detector::getInstance();
     double bTmpField[3];
@@ -97,12 +76,11 @@ void ExtractTrack::processEvent(LCEvent* evt){
     ++_nEvt;
 
     LCCollection* colPFO = evt->getCollection("PandoraPFOs");
-
     LCCollection* colTrackPion = evt->getCollection("MarlinTrkTracks");
 
-    LCCollection* colTrack = nullptr;
-    if (_massAssumption == "Kaon") colTrack = evt->getCollection("MarlinTrkTracksKaon");
-    else if (_massAssumption == "Proton") colTrack = evt->getCollection("MarlinTrkTracksProton");
+    string colTrackName = "MarlinTrkTracks";
+    if (_massAssumption == "Kaon" || _massAssumption == "Proton") colTrackName = Form("MarlinTrkTracks%s", _massAssumption.c_str());
+    LCCollection* colTrack = evt->getCollection(colTrackName);
 
     for (int i=0; i<colPFO->getNumberOfElements(); ++i){
         ReconstructedParticle* pfo = dynamic_cast<ReconstructedParticle*>(colPFO->getElementAt(i));
@@ -122,52 +100,42 @@ void ExtractTrack::processEvent(LCEvent* evt){
                 _omega[j] = 0.;
                 _z0[j] = 0.;
                 _tanL[j] = 0.;
-                _xRef[j] = 0.;
-                _yRef[j] = 0.;
-                _zRef[j] = 0.;
-                _px[j] = 0.;
-                _py[j] = 0.;
-                _pz[j] = 0.;
             }
             _tree->Fill();
             continue;
         }
 
         //Get track from PFO or collection with refitted mass assumption
-        const Track* pfoTrack = pfo->getTracks()[0];
+        const Track* track = pfo->getTracks()[0];
 
-        int colTrackIdx = -1;
         if (_massAssumption == "Kaon" || _massAssumption == "Proton"){
             for (int j = 0; j < colTrackPion->getNumberOfElements(); ++j) {
                 const Track* tmpTrack = dynamic_cast<Track*>(colTrackPion->getElementAt(j));
-                if (pfoTrack == tmpTrack) {colTrackIdx = j; break;}
+                if (track == tmpTrack) {
+                    track = dynamic_cast<Track*>(colTrack->getElementAt(j));
+                    break;
+                }
             }
         }
-
-        const Track* track = nullptr;
-        if (_massAssumption == "Pion") track = pfoTrack;
-        else if (_massAssumption == "Kaon") track = dynamic_cast<Track*>(colTrack->getElementAt(colTrackIdx));
-        else if (_massAssumption == "Proton") track = dynamic_cast<Track*>(colTrack->getElementAt(colTrackIdx));
 
         _chi2 = track->getChi2();
         _ndf = track->getNdf();
         _dEdX = track->getdEdx();
 
-        for (int j = 0; j < _nTrackStates; ++j) {
-            if(_ndf == 0){
+        //God bless
+        if(_ndf == 0){
+            for (int j = 0; j < _nTrackStates; ++j){
                 _d0[j] = 0.;
                 _phi[j] = 0.;
                 _omega[j] = 0.;
                 _z0[j] = 0.;
                 _tanL[j] = 0.;
-                _xRef[j] = 0.;
-                _yRef[j] = 0.;
-                _zRef[j] = 0.;
-                _px[j] = 0.;
-                _py[j] = 0.;
-                _pz[j] = 0.;
-                continue;
             }
+            _tree->Fill();
+            continue;
+        }
+
+        for (int j = 0; j < _nTrackStates; ++j) {
             const TrackState* ts = track->getTrackState(_trackStates[j]);
             _d0[j] = ts->getD0();
             _phi[j] = ts->getPhi();
@@ -175,16 +143,12 @@ void ExtractTrack::processEvent(LCEvent* evt){
             _z0[j] = ts->getZ0();
             _tanL[j] = ts->getTanLambda();
             const float* pos = ts->getReferencePoint();
-            _xRef[j] = pos[0];
-            _yRef[j] = pos[1];
-            _zRef[j] = pos[2];
+            _ref[j] = XYZPoint(pos[0], pos[1], pos[2]);
 
             HelixClass helix;
             helix.Initialize_Canonical(_phi[j], _d0[j], _z0[j], _omega[j], _tanL[j], _bField);
             const float* mom = helix.getMomentum();
-            _px[j] = mom[0];
-            _py[j] = mom[1];
-            _pz[j] = mom[2];
+            _p[j] = XYZVector(mom[0], mom[1], mom[2]);
         }
         _tree->Fill();
     } // end of PFOs loop

@@ -5,23 +5,25 @@
     @brief ExtractCalorimeterHits class for extracting tracker hits from slcio to root file
 */
 
-#ifndef ExtractCalorimeterHits_h
-#define ExtractCalorimeterHits_h 1
+#ifndef ExtractCalorimeterHits_hpp
+#define ExtractCalorimeterHits_hpp 1
 
 #include "TFile.h"
 #include "TTree.h"
+#include "Math/Vector3D.h"
+#include "Math/Vector4D.h"
 #include "marlin/Processor.h"
 #include <chrono>
 #include <vector>
 #include <string>
 using marlin::Processor;
+using namespace ROOT::Math;
 using namespace std::chrono;
-using std::vector, std::string;
+using std::vector, std::string, std::unique_ptr;
 
 class ExtractCalorimeterHits : public Processor {
 public:
     ExtractCalorimeterHits();
-    ~ExtractCalorimeterHits();
 
     Processor* newProcessor() {return new ExtractCalorimeterHits;}
     void init();
@@ -29,23 +31,17 @@ public:
     void end();
 
 protected:
-    //Time and status progress
+    unique_ptr <TFile> _file;
+    unique_ptr <TTree> _tree;
 	int _nEvt;
     time_point <system_clock> _start;
 
     string _outputFileName;
-    TFile* _file;
-    TTree* _tree;
 
-    // static const int _nCalorimeterRegions = 1;
     int _nHits;
-    vector <float> _x;
-    vector <float> _y;
-    vector <float> _z;
-    vector <float> _t;
-    vector <float> _tMCFastest;
+    vector <XYZTVector> _pos;
     vector <int> _layer;
-
+    vector <float> _energy;
 };
 
 

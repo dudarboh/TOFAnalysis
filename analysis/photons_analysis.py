@@ -26,63 +26,98 @@ ch.AddFriend(ch3, "tr")
 ch.AddFriend(ch4, "cal")
 
 df_initial = ROOT.RDataFrame(ch)
-ROOT.gInterpreter.Declare('#include "analysis.hpp"')
+ROOT.gInterpreter.Declare('#include "tof_estimators.hpp"')
 
-def good_photons(df):
+
+def selection(df):
     res = df.Filter("nMC == 1 && PDG[0] == 22 && cal.nHits > 0 \
-    && isBackscatter[0] == 0 && isDecayedInTracker[0] == 0\
-    && abs(cluster.z) < 2200. && abs(xMC[0]) < .5\
-    && abs(yMC[0]) < .5 && abs(zMC[0]) < .5")
-    return res;
+                    && isBackscatter[0] == 0 && isDecayedInTracker[0] == 0\
+                    && abs(cluster.z) < 2200. && abs(xMC[0]) < .5\
+                    && abs(yMC[0]) < .5 && abs(zMC[0]) < .5")
+    return res
 
-def use_mc(df):
-    # Calculations of track length and direction and intersection based on true info
+
+def impact_point(df):
     res = df.Define("phiLine", "atan2(pyMC[0], pxMC[0])").Define("thetaLine", "atan2( sqrt(pxMC[0]*pxMC[0] + pyMC[0]*pyMC[0]), pzMC[0])")\
-    .Define("nx", "getPlaneDir(phiLine, 0)").Define("ny", "getPlaneDir(phiLine, 1)").Define("nz", "getPlaneDir(phiLine, 2)")\
-    .Define("tLineParam", "intersection(nx, ny, nz, nx, ny, nz, pxMC[0], pyMC[0], pzMC[0], xMC[0], yMC[0], zMC[0])")\
-    .Define("xImpact", "tLineParam*pxMC[0] + xMC[0]")\
-    .Define("yImpact", "tLineParam*pyMC[0] + yMC[0]")\
-    .Define("zImpact", "tLineParam*pzMC[0] + zMC[0]")\
-    .Define("tSmeared", "smear_time(cal.t)")\
-    .Define("dToLine", "dToLine(cal.x, cal.y, cal.z, xImpact, yImpact, zImpact, pxMC[0], pyMC[0], pzMC[0])")\
-    .Define("dToRef", "dToRef(cal.x, cal.y, cal.z, xImpact, yImpact, zImpact)")\
-    .Define("tofFit", "tof_fit(cal.t, dToRef, dToLine, cal.layer)")\
-    .Define("tofFitCut", "tof_fit(cal.t, dToRef, dToLine, cal.layer, 10, 4.)")\
-    .Define("tofFitCyl", "tof_fit_cyl(cal.t, dToRef, dToLine, cal.layer)")\
-    .Define("tofFastest", "tof_fastest(cal.t, dToRef)")\
-    .Define("tofClosest", "tof_closest(cal.t, dToRef)")\
-    .Define("tofAvg", "tof_avg(cal.t, dToRef, dToLine, cal.layer)")\
-    .Define("tofFitSmeared", "tof_fit(tSmeared, dToRef, dToLine, cal.layer)")\
-    .Define("tofFastestSmeared", "tof_fastest(tSmeared, dToRef)")\
-    .Define("tofClosestSmeared", "tof_closest(tSmeared, dToRef)")\
-    .Define("tofAvgSmeared", "tof_avg(tSmeared, dToRef, dToLine, cal.layer)")\
-    .Define("tofLen", "sqrt((xImpact-xMC[0])*(xImpact-xMC[0]) + (yImpact-yMC[0])*(yImpact-yMC[0]) + (zImpact-zMC[0])*(zImpact-zMC[0]))/c")\
-    .Define("len", "sqrt((xImpact-xMC[0])*(xImpact-xMC[0]) + (yImpact-yMC[0])*(yImpact-yMC[0]) + (zImpact-zMC[0])*(zImpact-zMC[0]))")\
-    .Define("mom", "sqrt(pxMC[0]*pxMC[0] + pyMC[0]*pyMC[0] + pzMC[0]*pzMC[0])")\
-    .Define("dTfit", "tofFit - tofLen")\
-    .Define("dTfitCut", "tofFitCut - tofLen")\
-    .Define("dTFitCyl", "tofFitCyl - tofLen")\
-    .Define("dTfastest", "tofFastest - tofLen")\
-    .Define("dTclosest", "tofClosest - tofLen")\
-    .Define("dTavg", "tofAvg - tofLen")\
-    .Define("dTfitSmeared", "tofFitSmeared - tofLen")\
-    .Define("dTfastestSmeared", "tofFastestSmeared - tofLen")\
-    .Define("dTclosestSmeared", "tofClosestSmeared - tofLen")\
-    .Define("dTavgSmeared", "tofAvgSmeared - tofLen")\
-    .Define("dToRef_fastest", "dToRef_fastest(cal.t, dToRef)")\
-    .Define("dToLine_fastest", "dToLine_fastest(cal.t, dToLine)")\
-    .Define("layer_fastest", "layer_fastest(cal.t, cal.layer)")\
-    .Define("tHitFit", "time_hit_fit(cal.t, dToLine, cal.layer)")\
-    .Define("dToLineHitFit", "dToLine_hit_fit(dToLine, cal.layer)")\
-    .Define("dToRefHitFit", "dToRef_hit_fit(dToRef, dToLine, cal.layer)")\
-    .Define("layerHitFit", "layer_hit_fit(dToLine, cal.layer)")
+            .Define("nx", "getPlaneDir(phiLine, 0)").Define("ny", "getPlaneDir(phiLine, 1)").Define("nz", "getPlaneDir(phiLine, 2)")\
+            .Define("tLineParam", "intersection(nx, ny, nz, nx, ny, nz, pxMC[0], pyMC[0], pzMC[0], xMC[0], yMC[0], zMC[0])")\
+            .Define("xImpact", "tLineParam*pxMC[0] + xMC[0]")\
+            .Define("yImpact", "tLineParam*pyMC[0] + yMC[0]")\
+            .Define("zImpact", "tLineParam*pzMC[0] + zMC[0]")
+    return res
 
+
+def calo_hit_params(df):
+    res = df.Define("dToLine", "dToLine(cal.x, cal.y, cal.z, xImpact, yImpact, zImpact, pxMC[0], pyMC[0], pzMC[0])")\
+            .Define("dToRef", "dToRef(cal.x, cal.y, cal.z, xImpact, yImpact, zImpact)")\
+            .Define("tHitFit", "time_hit_fit(cal.t, dToLine, cal.layer)")\
+            .Define("dToLineHitFit", "dToLine_hit_fit(dToLine, cal.layer)")\
+            .Define("dToRefHitFit", "dToRef_hit_fit(dToRef, dToLine, cal.layer)")\
+            .Define("layerHitFit", "layer_hit_fit(dToLine, cal.layer)")\
+            .Define("residual", "residual(cal.t, dToRef, dToLine, cal.layer)")
+    return res
+
+
+def pfo_params(df):
+    res = df.Define("len", "sqrt((xImpact-xMC[0])*(xImpact-xMC[0]) + (yImpact-yMC[0])*(yImpact-yMC[0]) + (zImpact-zMC[0])*(zImpact-zMC[0]))")\
+            .Define("mom", "sqrt(pxMC[0]*pxMC[0] + pyMC[0]*pyMC[0] + pzMC[0]*pzMC[0])")\
+            .Define("dToRef_fastest", "dToRef_fastest(cal.t, dToRef)")\
+            .Define("dToLine_fastest", "dToLine_fastest(cal.t, dToLine)")\
+            .Define("layer_fastest", "layer_fastest(cal.t, cal.layer)")\
+            .Define("tofChi2", "tof_chi2(cal.t, dToRef, dToLine, cal.layer)")
+    return res
+
+
+def tofs(df):
+    res = df.Define("tofLen", "sqrt((xImpact-xMC[0])*(xImpact-xMC[0]) + (yImpact-yMC[0])*(yImpact-yMC[0]) + (zImpact-zMC[0])*(zImpact-zMC[0]))/c")\
+            .Define("tofFastest", "tof_fastest(cal.t, dToRef)")\
+            .Define("tofClosest", "tof_closest(cal.t, dToRef)")\
+            .Define("tofAvg", "tof_avg(cal.t, dToRef, dToLine, cal.layer)")\
+            .Define("tofFit", "tof_fit(cal.t, dToRef, dToLine, cal.layer)")\
+            .Define("tofFit2", "tof_fit(cal.t, dToRef, dToLine, cal.layer, 10, 2)")\
+            .Define("tofFit3", "tof_fit(cal.t, dToRef, dToLine, cal.layer, 10, 1, 0.01)")\
+            .Define("tofFitCyl", "tof_fit_cyl(cal.t, dToRef, dToLine, cal.layer)")\
+            .Define("tofFitCyl2", "tof_fit_cyl(cal.t, dToRef, dToLine, cal.layer, 10, 2)")\
+            .Define("tofFitCyl3", "tof_fit_cyl(cal.t, dToRef, dToLine, cal.layer, 10, 1, 0.01)")
+    return res
+
+
+def tofs_smeared(df):
+    res = df.Define("tSmeared", "smear_time(cal.t)")\
+            .Define("tofFastestSmeared", "tof_fastest(tSmeared, dToRef)")\
+            .Define("tofClosestSmeared", "tof_closest(tSmeared, dToRef)")\
+            .Define("tofAvgSmeared", "tof_avg(tSmeared, dToRef, dToLine, cal.layer)")\
+            .Define("tofFitSmeared", "tof_fit(tSmeared, dToRef, dToLine, cal.layer)")\
+            .Define("tofFitCyl3Smeared", "tof_fit_cyl(tSmeared, dToRef, dToLine, cal.layer, 10, 1, 0.01)")
+
+    return res
+
+
+def biases(df):
+    res = df.Define("dTfastest", "tofFastest - tofLen")\
+            .Define("dTclosest", "tofClosest - tofLen")\
+            .Define("dTavg", "tofAvg - tofLen")\
+            .Define("dTfit", "tofFit - tofLen")\
+            .Define("dTfit2", "tofFit2 - tofLen")\
+            .Define("dTfit3", "tofFit3 - tofLen")\
+            .Define("dTFitCyl", "tofFitCyl - tofLen")\
+            .Define("dTFitCyl2", "tofFitCyl2 - tofLen")\
+            .Define("dTFitCyl3", "tofFitCyl3 - tofLen")
+    return res
+
+
+def biases_smeared(df):
+    res = df.Define("dTfastestSmeared", "tofFastestSmeared - tofLen")\
+            .Define("dTclosestSmeared", "tofClosestSmeared - tofLen")\
+            .Define("dTavgSmeared", "tofAvgSmeared - tofLen")\
+            .Define("dTfitSmeared", "tofFitSmeared - tofLen")\
+            .Define("dTfitCyl3Smeared", "tofFitCyl3Smeared - tofLen")
     return res
 
 
 def use_cluster_position(df):
     # Calculations of track length and direction and intersection based on cluster position
-    res = df.Define("phiLine", "atan2(cluster.y, cluster.x)").Define("thetaLine", "atan2( sqrt(cluster.x*cluster.x + cluster.y*cluster.y), cluster.z)")\
+    res = df.Define("phiLine", "atan2(cluster.y, cluster.x)").Define("thetaLine", "phiLineatan2( sqrt(cluster.x*cluster.x + cluster.y*cluster.y), cluster.z)")\
     .Define("nx", "getPlaneDir(phiLine, 0)").Define("ny", "getPlaneDir(phiLine, 1)").Define("nz", "getPlaneDir(phiLine, 2)")\
     .Define("tLineParam", "intersection(nx, ny, nz, nx, ny, nz, cluster.x, cluster.y, cluster.z, cluster.x, cluster.y, cluster.z)")\
     .Define("xImpact", "tLineParam*cluster.x + cluster.x")\
@@ -116,8 +151,19 @@ def use_cluster_direction(df):
 
 def analysis():
     canvas = ROOT.TCanvas()
-    df = good_photons(df_initial).Range(300000)
-    df = use_mc(df)
+    df = selection(df_initial).Range(100000)
+    df = impact_point(df)
+    df = calo_hit_params(df)
+    df = tofs(df)
+    df = biases(df)
+    df = tofs_smeared(df)
+    df = biases_smeared(df)
+    df = pfo_params(df)
+    df = df.Define("hit", "class_test(cal.t, dToRef, dToLine, cal.layer)")
+
+    test = df.Define("hit_r", "hit[0].r").Histo1D(("test","test; x ; y", 1000, -.1, .1), "hit_r").Draw()
+    input("wait")
+
     # Define all posible histograms you may want to study
 
     # h_tof_fastest = df.Histo1D(("h_tof_fastest","TOF fastest; TOF, [ns]; N_{PFO}", 600, 5., 11.), "tofFastest")
@@ -126,14 +172,16 @@ def analysis():
     # h_tof_fastest_bias = df.Histo1D(("h_tof_fastest_bias","TOF fastest; TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.1, .1), "dTfastest")
     # h_tof_closest_bias = df.Histo1D(("h_tof_closest_bias","TOF closest; TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.1, .1), "dTclosest")
     h_tof_fit_bias = df.Histo1D(("h_tof_fit_bias","TOF fit (hit per layer in 10 layers); TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.1, .1), "dTfit")
+    h_tof_fit2_bias = df.Histo1D(("h_tof_fit2_bias","TOF fit with res cut; TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.1, .1), "dTfit3")
+    h_tof_fit_cyl2_bias = df.Histo1D(("h_tof_fit_cyl2_bias","TOF fit with res cut in cyl; TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.1, .1), "dTFitCyl3")
     # h_tof_avg_bias = df.Histo1D(("h_tof_avg_bias","TOF avg; TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.1, .1), "dTavg")
     # h_tof_fastest_bias = df.Histo1D(("h_tof_fastest_bias","TOF fastest; TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.5, .5), "dTfastestSmeared")
     # h_tof_closest_bias = df.Histo1D(("h_tof_closest_bias","TOF closest; TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.5, .5), "dTclosestSmeared")
     # h_tof_fit_bias = df.Histo1D(("h_tof_fit_bias","TOF fit; TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.5, .5), "dTfitSmeared")
     # h_tof_avg_bias = df.Histo1D(("h_tof_avg_bias","TOF avg; TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.5, .5), "dTavgSmeared")
 
-    h_tof_fit_cyl_bias = df.Histo1D(("h_tof_fit_cyl_bias","TOF fit (all hits in d<4 mm); TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.1, .1), "dTFitCyl")
-    h_tof_fit_cut_bias = df.Histo1D(("h_tof_fit_cut_bias","TOF fit (hit per layer in 10 layers + d<4 mm cut); TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.1, .1), "dTfitCut")
+    # h_tof_fit_cyl_bias = df.Histo1D(("h_tof_fit_cyl_bias","TOF fit (all hits in d<4 mm); TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.1, .1), "dTFitCyl")
+    # h_tof_fit_cut_bias = df.Histo1D(("h_tof_fit_cut_bias","TOF fit (hit per layer in 10 layers + d<4 mm cut); TOF - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.1, .1), "dTfitCut")
 
 
     # prof_tof_fit_vs_p = df.Histo2D(("prof_tof_fit_vs_p","Profile TOF bias vs p; p, [GeV]; TOF_{fit} - #frac{l}{c}, [ns]", 1000, 0., 100., 1000, -.05, .05), "mom", "dTfit").ProfileX()
@@ -154,9 +202,10 @@ def analysis():
     # prof_layer_nCaloHits_fastest = df.Histo2D(("prof_layer_nCaloHits_fastest","layer fastest; layer fastest; nCaloHits (all)", 30, 0, 30, 300, 0, 300), "layer_fastest", "cal.nHits").ProfileX()
     # prof_layer_p_fastest = df.Histo2D(("prof_layer_p_fastest","layer fastest; p (GeV); layer fastest", 1000, 0, 100, 30, 0, 30), "mom", "layer_fastest").ProfileX()
     # h_tof_fit_bias_layer_fastest = df.Histo2D(("h_tof_fit_bias_layer_fastest","TOF fit bias vs layer of fastest TOF; layer; TOF fit bias, [nm]", 30, 0, 30, 1000, -0.5, 0.5), "layer_fastest", "dTfit")
-    # h_tof_fastest_bias_smeared = df.Histo1D(("h_tof_fastest_bias_smeared","TOF fastest smeared; TOF_{fastest, smeared} - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.4, .4), "dTfastestSmeared")
-    # h_tof_closest_bias_smeared = df.Histo1D(("h_tof_closest_bias_smeared","TOF closest smeared; TOF_{closest, smeared} - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.4, .4), "dTclosestSmeared")
-    # h_tof_fit_bias_smeared = df.Histo1D(("h_tof_fit_bias_smeared","TOF fit smeared; TOF_{fit, smeared} - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.4, .4), "dTfitSmeared")
+    h_tof_fastest_bias_smeared = df.Histo1D(("h_tof_fastest_bias_smeared","TOF fastest smeared; TOF_{fastest, smeared} - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.4, .4), "dTfastestSmeared")
+    h_tof_closest_bias_smeared = df.Histo1D(("h_tof_closest_bias_smeared","TOF closest smeared; TOF_{closest, smeared} - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.4, .4), "dTclosestSmeared")
+    h_tof_fit_bias_smeared = df.Histo1D(("h_tof_fit_bias_smeared","TOF fit smeared; TOF_{fit, smeared} - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.4, .4), "dTfitSmeared")
+    h_tof_fit_cyl3_bias_smeared = df.Histo1D(("h_tof_fit_cyl3_bias_smeared","TOF fit res cut cyl smeared; TOF_{fit, smeared} - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.4, .4), "dTfitCyl3Smeared")
     # # print_failed_fits = df.Filter("dTfit < -0.01").Define("print_status", "fit_plot(cal.t, dToRef, dToLine, cal.layer)").Histo1D(("name", "title", 2, 0,1), "print_status")
     #
     # h_dToLine_fit = df.Histo1D(("h_dToLine_fit","All PFO; distance to track line, [mm]; N_{hits}", 1000, 0., 20.), "dToLineHitFit")
@@ -174,22 +223,22 @@ def analysis():
     # h_tof_fit_cyl_bias = df.Histo1D(("h_tof_fit_cyl_bias","TOF fit d<4 mm; TOF_{fit, cylinder} - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.1, .1), "dTFitCyl")
     # h_tof_fit_cut_bias = df.Histo1D(("h_tof_fit_cut_bias","TOF fit (10layers) + d<4 mm ; TOF_{fit} - #frac{l}{c}, [ns]; N_{PFO}", 1000, -.1, .1), "dTfitCut")
 
-    # 1, 4, 6, 8
+    h_tof_chi2 = df.Histo1D(("h_tof_chi2","; Chi2/NDF for TOF fit, [ns]; N_{PFO}", 1000, 0., 30.), "tofChi2")
+
+    h_residual = df.Histo1D(("h_residual"," Residual of ECAL hits used in fit; residual, [mm]; N_{hits}", 1000, -2.05, 2.05), "residual")
+
+    # 1 - fastest, 4 - closest, 6 - fit, 8 - avg
+
+
     h_tof_fit_bias.Draw()
-    h_tof_fit_bias.SetLineColor(6)
-
-    h_tof_fit_cyl_bias.Draw("same")
-    h_tof_fit_cyl_bias.SetLineColor(6)
-    h_tof_fit_cyl_bias.SetLineStyle(2)
-    h_tof_fit_cut_bias.Draw("same")
-    h_tof_fit_cut_bias.SetLineColor(6)
-    h_tof_fit_cut_bias.SetLineStyle(8)
-
-
+    h_tof_fit2_bias.SetLineColor(2)
+    h_tof_fit2_bias.Draw("sames")
+    h_tof_fit_cyl2_bias.SetLineColor(4)
+    h_tof_fit_cyl2_bias.Draw("sames")
     canvas.BuildLegend()
     canvas.SetGridx()
     canvas.SetGridy()
-    h_tof_fit_bias.SetTitle("Different fit methods with cylinder cut")
+    # h_tof_chi2.SetTitle("Histo title")
     canvas.Update()
     input("wait")
 

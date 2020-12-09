@@ -1,26 +1,17 @@
 
-#include "ExtractTrackerHits.h"
+#include "ExtractTrackerHits.hpp"
 
-// #include <iostream>
-using std::cout, std::endl;
 
-//TPC radii
 #include "DD4hep/Detector.h"
 #include "DD4hep/DD4hepUnits.h"
-using dd4hep::Detector, dd4hep::DetElement, dd4hep::mm;
-
 #include "DDRec/DetectorData.h"
-using dd4hep::rec::FixedPadSizeTPCData;
-
 #include "EVENT/LCCollection.h"
-using EVENT::LCCollection;
 #include "EVENT/ReconstructedParticle.h"
-using EVENT::ReconstructedParticle;
-
 #include <EVENT/SimTrackerHit.h>
-using EVENT::SimTrackerHit;
-
 #include <UTIL/LCRelationNavigator.h>
+using dd4hep::Detector, dd4hep::DetElement, dd4hep::mm, dd4hep::rec::FixedPadSizeTPCData;
+using EVENT::LCCollection, EVENT::ReconstructedParticle, EVENT::SimTrackerHit;
+using std::cout, std::endl;
 
 
 ExtractTrackerHits aExtractTrackerHits;
@@ -29,47 +20,27 @@ ExtractTrackerHits::ExtractTrackerHits() : Processor("ExtractTrackerHits"){
     registerProcessorParameter(string("outputFile"), string("Name of the output root file"), _outputFileName, string("TrackerHits.root"));
 }
 
-ExtractTrackerHits::~ExtractTrackerHits(){
-    delete _tree;
-    delete _file;
-}
-
 void ExtractTrackerHits::init(){
     _nEvt = 0;
     _start = system_clock::now();
 
-    _file = new TFile(_outputFileName.c_str(), "RECREATE");
-    _tree = new TTree("TrackerHits", "Tree with tracker hits");
+    _file.reset( new TFile(_outputFileName.c_str(), "RECREATE") );
+    _tree.reset( new TTree("TrackerHits", "Tree with tracker hits") );
 
-    _tree->Branch("nInnerHits", &_nHits[0], "nInnerHits/I");
-    _tree->Branch("xInner", &_x[0]);
-    _tree->Branch("yInner", &_y[0]);
-    _tree->Branch("zInner", &_z[0]);
-    _tree->Branch("tInner", &_t[0]);
+    _tree->Branch("nInnerHits", &_nHits[0]);
+    _tree->Branch("posInner", &_pos[0]);
 
-    _tree->Branch("nTPCHits", &_nHits[1], "nTPCHits/I");
-    _tree->Branch("xTPC", &_x[1]);
-    _tree->Branch("yTPC", &_y[1]);
-    _tree->Branch("zTPC", &_z[1]);
-    // _tree->Branch("tTPC", &_t[1]);
+    _tree->Branch("nTPCHits", &_nHits[1]);
+    _tree->Branch("posTPC", &_pos[1]);
 
     _tree->Branch("nTPCMC", &_nMC[1]);
-    _tree->Branch("xTPCMC", &_xMC[1]);
-    _tree->Branch("yTPCMC", &_yMC[1]);
-    _tree->Branch("zTPCMC", &_zMC[1]);
-    _tree->Branch("tTPCMC", &_tMC[1]);
-    _tree->Branch("eDepTPCMC", &_eDepMC[1]);
-    _tree->Branch("pxTPCMC", &_pxMC[1]);
-    _tree->Branch("pyTPCMC", &_pyMC[1]);
-    _tree->Branch("pzTPCMC", &_pzMC[1]);
+    _tree->Branch("posTPCMC", &_posMC[1]);
+    _tree->Branch("pTPCMC", &_pMC[1]);
     _tree->Branch("pathLengthTPCMC", &_pathLengthMC[1]);
     _tree->Branch("isProducedBySecondaryTPCMC", &_isProducedBySecondary[1]);
 
-    _tree->Branch("nSETHits", &_nHits[2], "nSETHits/I");
-    _tree->Branch("xSET", &_x[2]);
-    _tree->Branch("ySET", &_y[2]);
-    _tree->Branch("zSET", &_z[2]);
-    _tree->Branch("tSET", &_t[2]);
+    _tree->Branch("nSETHits", &_nHits[2]);
+    _tree->Branch("posSET", &_pos[2]);
 
     //get VXD, SIT, TPC, SET radii to write hits based on their subdetector
     const Detector& detector = Detector::getInstance();
@@ -110,14 +81,12 @@ void ExtractTrackerHits::processEvent(LCEvent* evt){
         const Track* track = pfo->getTracks()[0];
 
         for (auto&& hit : track->getTrackerHits() ){
-            const double* pos = hit->getPosition();
-            const double rho = sqrt(pos[0]*pos[0]+pos[1]*pos[1]);
+            const double* xyz = hit->getPosition();
+            XYZTVector pos(xyz[0], xyz[1], xyz[2], hit->getTime());
+            double rho = pos.rho();
             // 0 - Inner, 1 - TPC, 2 - SET
             const int trackerIdx = (_rTPCInner <= rho && rho <= _rTPCOuter) + 2*(rho > _rTPCOuter);
-            _x[trackerIdx].push_back(pos[0]);
-            _y[trackerIdx].push_back(pos[1]);
-            _z[trackerIdx].push_back(pos[2]);
-            _t[trackerIdx].push_back(hit->getTime());
+            _pos[trackerIdx].push_back(pos);
 
             if (trackerIdx != 1) continue;
 
@@ -126,38 +95,21 @@ void ExtractTrackerHits::processEvent(LCEvent* evt){
             if (relationObjects.size() == 0) continue;
             // Push only 1st hit info. Managing 2d array in root files is pain
             SimTrackerHit* mcHit = dynamic_cast<SimTrackerHit*>(relationObjects[0]);
-            const double* posMC = mcHit->getPosition();
-            _xMC[trackerIdx].push_back(posMC[0]);
-            _yMC[trackerIdx].push_back(posMC[1]);
-            _zMC[trackerIdx].push_back(posMC[2]);
-            _tMC[trackerIdx].push_back(mcHit->getTime());
-            _eDepMC[trackerIdx].push_back(mcHit->getEDep());
-            const float* mom = mcHit->getMomentum();
-            _pxMC[trackerIdx].push_back(mom[0]);
-            _pyMC[trackerIdx].push_back(mom[1]);
-            _pzMC[trackerIdx].push_back(mom[2]);
+            const double* xyzMC = mcHit->getPosition();
+            _posMC[trackerIdx].push_back( XYZTVector(xyzMC[0], xyzMC[1], xyzMC[2], mcHit->getTime()) );
+            const float* momMC = mcHit->getMomentum();
+            _pMC[trackerIdx].push_back( PxPyPzEVector(momMC[0], momMC[1], momMC[2], mcHit->getEDep()) );
             _pathLengthMC[trackerIdx].push_back(mcHit->getPathLength());
             _isProducedBySecondary[trackerIdx].push_back(mcHit->isProducedBySecondary());
         }
-        for (int j = 0; j < _nTrackerRegions; ++j) _nHits[j] = _x[j].size();
+        for (int j = 0; j < _nTrackerRegions; ++j) _nHits[j] = _pos[j].size();
         _tree->Fill();
 
-        //Clear all the vectors before next PFO
         for (int j = 0; j < _nTrackerRegions; ++j){
-            _x[j].clear();
-            _y[j].clear();
-            _z[j].clear();
-            _t[j].clear();
-
+            _pos[j].clear();
             _nMC[j].clear();
-            _xMC[j].clear();
-            _yMC[j].clear();
-            _zMC[j].clear();
-            _tMC[j].clear();
-            _eDepMC[j].clear();
-            _pxMC[j].clear();
-            _pyMC[j].clear();
-            _pzMC[j].clear();
+            _posMC[j].clear();
+            _pMC[j].clear();
             _pathLengthMC[j].clear();
             _isProducedBySecondary[j].clear();
         }
