@@ -22,7 +22,7 @@ void ExtractCluster::init(){
     _tree.reset( new TTree("Cluster", "Tree with cluster info") );
 
     _tree->Branch("energy", &_energy);
-    _tree->Branch("pos", &_pos);
+    _tree->Branch("posCluster", &_pos);
     _tree->Branch("phi", &_phi);
     _tree->Branch("theta", &_theta);
 

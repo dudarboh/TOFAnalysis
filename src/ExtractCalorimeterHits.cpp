@@ -25,7 +25,7 @@ void ExtractCalorimeterHits::init(){
     _tree.reset( new TTree("ECALHits", "Tree with ECAL hits") );
 
     _tree->Branch("nHits", &_nHits);
-    _tree->Branch("pos", &_pos);
+    _tree->Branch("posECALHit", &_pos);
     _tree->Branch("layer", &_layer);
     _tree->Branch("energy", &_energy);
 }
