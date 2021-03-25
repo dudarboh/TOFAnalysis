@@ -1,11 +1,12 @@
 import ROOT
 import numpy as np
 
-ROOT.EnableImplicitMT(4)
+ROOT.EnableImplicitMT(2)
 ROOT.gStyle.SetPalette(1)
 ROOT.gStyle.SetPadGridX(1)
 ROOT.gStyle.SetPadGridY(1)
 ROOT.gStyle.SetOptFit(1111)
+ROOT.gStyle.SetOptStat(1110)
 ROOT.gInterpreter.Declare('#include "plot.hpp"')
 
 def plot_pions():
@@ -61,29 +62,29 @@ def plot_photons():
     # fit slices
     # canvas = ROOT.TCanvas()
     # canvas.Divide(2, 2)
-    #
+
     # df = df.Define("ratioClosest", "tofClosest0/tofTrue")\
     #        .Define("ratioFastest", "tofFastest0/tofTrue")\
     #        .Define("ratioFrank", "tofFrank0/tofTrue")\
     #        .Define("ratioCyl", "tofCyl0/tofTrue")\
     #
-    # canvas.cd(1)
+    # # canvas.cd(1)
     # h = df.Histo2D(("h"," Cylinder 5mm;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 200, 0.999, 1.001), "nHitsCluster","ratioCyl")
-    # h.Draw("colz")
+    # # h.Draw("colz")
     #
     # h.FitSlicesY(0,0,-1,100)
     #
-    # canvas.cd(2)
-    # h_chi2 = ROOT.gROOT.FindObject("h_chi2")
-    # h_chi2.Draw()
+    # # canvas.cd(2)
+    # # h_chi2 = ROOT.gROOT.FindObject("h_chi2")
+    # # h_chi2.Draw()
     #
-    # canvas.cd(3)
+    # # canvas.cd(3)
     # h_1 = ROOT.gROOT.FindObject("h_1")
     # h_1.Draw()
     #
-    # canvas.cd(4)
-    # h_2 = ROOT.gROOT.FindObject("h_2")
-    # h_2.Draw()
+    # # canvas.cd(4)
+    # # h_2 = ROOT.gROOT.FindObject("h_2")
+    # # h_2.Draw()
     # canvas.Update()
     # input("wait")
 
@@ -99,6 +100,18 @@ def plot_photons():
             # deltas
             df = df.Define("dt{1}{0}".format(s, m), "tof{1}{0} - tofTrue".format(s, m))\
                    .Define("dtCalib{1}{0}".format(s, m), "calibrateTOF(tof{1}{0}, nHitsCluster, \"{1}\") - tofTrue".format(s, m))\
+
+
+    h_before = df.Histo2D(("h_before"," before calibration;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 200, 0.999, 1.001), "nHitsCluster","ratioFrank0")
+    h_before.FitSlicesY(0,0,-1,100)
+    h_before_1 = ROOT.gROOT.FindObject("h_before_1")
+    h_before_1.Draw()
+    h_after = df.Histo2D(("h_after"," After calibration;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 200, 0.999, 1.001), "nHitsCluster","ratioCalibFrank0")
+    h_after.FitSlicesY(0,0,-1,100)
+    h_after_1 = ROOT.gROOT.FindObject("h_after_1")
+    h_after_1.Draw("same")
+
+
 
     ################## 1D biases OF ALL METHODS CALIBRATED###############
     # h_closest = df.Histo1D(("h_closest"," Closest hit; #Delta TOF, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtCalibClosest0")
@@ -121,24 +134,25 @@ def plot_photons():
     # h_cyl.Draw("same")
 
     ################## Bias of 1 method vs smearing###############
-    h0 = df.Histo1D(("h0"," 0 ps; #Delta TOF, [ns]; N_{PFO}", 500, -0.1, 0.1), "dtClosest0")
-    h10 = df.Histo1D(("h10"," 10 ps; #Delta TOF, [ns]; N_{PFO}", 500, -0.1, 0.1), "dtClosest10")
-    h30 = df.Histo1D(("h30"," 30 ps; #Delta TOF, [ns]; N_{PFO}", 500, -0.1, 0.1), "dtClosest30")
-    h50 = df.Histo1D(("h50"," 50 ps; #Delta TOF, [ns]; N_{PFO}", 500, -0.1, 0.1), "dtClosest50")
-    h100 = df.Histo1D(("h100"," 100 ps; #Delta TOF, [ns]; N_{PFO}", 500, -0.1, 0.1), "dtClosest100")
-    h200 = df.Histo1D(("h200"," 200 ps; #Delta TOF, [ns]; N_{PFO}", 500, -0.1, 0.1), "dtClosest200")
-    h300 = df.Histo1D(("h300"," 300 ps; #Delta TOF, [ns]; N_{PFO}", 500, -0.1, 0.1), "dtClosest300")
-    histos = [h0, h10, h30, h50, h100, h200, h300]
-    for idx, histo in enumerate(histos):
-        histo.SetLineColor(idx+1)
-        histo.SetLineWidth(2)
-    histos[0].Draw()
-    for i in range(1, 7):
-        histos[i].Draw("same")
+    # h0 = df.Histo1D(("h0"," 0 ps; #Delta TOF, [ns]; N_{PFO}", 50000, -5., 5.), "dtCyl0")
+    # h10 = df.Histo1D(("h10"," 10 ps; #Delta TOF, [ns]; N_{PFO}", 50000, -5., 5.), "dtCyl10")
+    # h30 = df.Histo1D(("h30"," 30 ps; #Delta TOF, [ns]; N_{PFO}", 50000, -5., 5.), "dtCyl30")
+    # h50 = df.Histo1D(("h50"," 50 ps; #Delta TOF, [ns]; N_{PFO}", 50000, -5., 5.), "dtCyl50")
+    # h100 = df.Histo1D(("h100"," 100 ps; #Delta TOF, [ns]; N_{PFO}", 50000, -5., 5.), "dtCyl100")
+    # h200 = df.Histo1D(("h200"," 200 ps; #Delta TOF, [ns]; N_{PFO}", 50000, -5., 5.), "dtCyl200")
+    # h300 = df.Histo1D(("h300"," 300 ps; #Delta TOF, [ns]; N_{PFO}", 50000, -5., 5.), "dtCyl300")
+    # histos = [h0, h10, h30, h50, h100, h200, h300]
+    # for idx, histo in enumerate(histos):
+    #     histo.SetLineColor(idx+1)
+    #     histo.SetLineWidth(2)
+    #     print(histo.GetStdDev())
+    # histos[0].Draw()
+    # for i in range(1, 7):
+    #     histos[i].Draw("same")
 
     # BIAS BEFORE/AFTER CALLIBRATION
-    # h_before = df.Histo1D(("h_before","Frank before calib; #Delta TOF, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtFrank")
-    # h_after = df.Histo1D(("h_after","Frank after calib; #Delta TOF, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtCalibFrank")
+    # h_before = df.Histo1D(("h_before","Before calibration; #Delta TOF, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtFrank0")
+    # h_after = df.Histo1D(("h_after","After calibration; #Delta TOF, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtCalibFrank0")
     # h_after.SetLineColor(2)
     # h_before.SetLineWidth(3)
     # h_after.SetLineWidth(3)
@@ -187,5 +201,7 @@ def plot_photons():
     input("wait")
 
 
+
+
 # plot_photons()
-plot_pions()
+# plot_pions()

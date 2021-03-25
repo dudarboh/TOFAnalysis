@@ -12,7 +12,7 @@
         </parameter>
 		<parameter name="MaxRecordNumber" value="0" />
         <parameter name="SupressCheck" value="false" />
-		<parameter name="AllowToModifyEvent" value="true" />
+		<parameter name="AllowToModifyEvent" value="false" />
 	</global>
 
 	<execute>
@@ -21,13 +21,7 @@
         <!-- <processor name="MyRefitProcessorKaon"/>
         <processor name="MyRefitProcessorProton"/> -->
 
-        <processor name="MyExtractPFO"/>
-        <processor name="MyExtractCluster"/>
-        <processor name="MyExtractTrackerHits"/>
-        <processor name="MyExtractCalorimeterHits"/>
-        <processor name="ExtractTrackPion"/>
-        <!-- <processor name="ExtractTrackKaon"/>
-        <processor name="ExtractTrackProton"/> -->
+        <processor name="MyTOFAnalysis"/>
 	</execute>
 
 
@@ -39,25 +33,7 @@
     </processor>
 
 
-    <processor name="MyExtractPFO" type="ExtractPFO"></processor>
-    <processor name="MyExtractCluster" type="ExtractCluster"></processor>
-    <processor name="MyExtractTrackerHits" type="ExtractTrackerHits"></processor>
-    <processor name="MyExtractCalorimeterHits" type="ExtractCalorimeterHits"></processor>
-
-
-    <processor name="ExtractTrackPion" type="ExtractTrack">
-        <parameter name="massAssumption">Pion</parameter>
-	</processor>
-
-
-    <processor name="ExtractTrackKaon" type="ExtractTrack">
-        <parameter name="massAssumption">Kaon</parameter>
-	</processor>
-
-
-    <processor name="ExtractTrackProton" type="ExtractTrack">
-        <parameter name="massAssumption">Proton</parameter>
-	</processor>
+    <processor name="MyTOFAnalysis" type="TOFAnalysis"></processor>
 
 
     <processor name="MyRefitProcessorKaon" type="RefitProcessor">
