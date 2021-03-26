@@ -4,57 +4,36 @@ import numpy as np
 ROOT.gStyle.SetPalette(1)
 
 # # 2f_Z_hadronic data
-ch = ROOT.TChain("PFO")
+ch = ROOT.TChain("TOFAnalysis")
 ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
-
-ch1 = ROOT.TChain("Cluster")
-ch1.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
-
-ch2 = ROOT.TChain("PionTrack")
-ch2.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
-
-ch3 = ROOT.TChain("TrackerHits")
-ch3.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
-
-ch4 = ROOT.TChain("ECALHits")
-ch4.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
-
-ch.AddFriend(ch1, "cluster")
-ch.AddFriend(ch2, "piFit")
-ch.AddFriend(ch3, "tr")
-ch.AddFriend(ch4, "cal")
-
 df = ROOT.RDataFrame(ch)
 ROOT.gInterpreter.Declare('#include "extract.hpp"')
 
 def get_photons(df):
     # Check only good photons in barrel
-    df = df.Filter("nMC == 1 && PDG[0] == 22 && cal.nHits > 0 \
-            && isBackscatter[0] == 0 && isDecayedInTracker[0] == 0\
-            && abs(cluster.posCluster.Z()) < 2200. && vtxMC[0].R() < 0.5").Range(1000000)
+    df = df.Filter("PDG == 22 && nECALHits > 0 && abs(xyzCluster.Z()) < 2200. && xyzVtxMC.R() < 0.5").Range(1000000)
 
     # All dependency calculations
-    df = df.Define("nHitsCluster", "int(cal.posECALHit.size())")\
-           .Define("ECALPlane", "getECALPlane( pMC[0].Phi() )")\
-           .Define("rImpact", "intersection(vtxMC[0].Vect(), pMC[0].Vect(), ECALPlane)")\
-           .Define("dToImpact", "dToImpact(cal.posECALHit, rImpact)")\
-           .Define("dToLine", "dToLine(cal.posECALHit, rImpact, pMC[0].Vect())")\
-           .Define("mom", "pMC[0].Vect().R()")
+    df = df.Define("ECALPlane", "getECALPlane( pMC.Phi() )")\
+           .Define("rImpact", "intersection(xyzVtxMC, pMC, ECALPlane)")\
+           .Define("dToImpact", "dToImpact(xyzECALHit, rImpact)")\
+           .Define("dToLine", "dToLine(xyzECALHit, rImpact, pMC)")\
+           .Define("mom", "pMC.R()")
     # smearings of ECAL hits times
-    df = df.Define("tofHit0", "tofHit(cal.posECALHit, 0)")\
-           .Define("tofHit10", "tofHit(cal.posECALHit, 10)")\
-           .Define("tofHit30", "tofHit(cal.posECALHit, 30)")\
-           .Define("tofHit50", "tofHit(cal.posECALHit, 50)")\
-           .Define("tofHit100", "tofHit(cal.posECALHit, 100)")\
-           .Define("tofHit200", "tofHit(cal.posECALHit, 200)")\
-           .Define("tofHit300", "tofHit(cal.posECALHit, 300)")
+    df = df.Define("tofHit0", "tofHit(tECALHit, 0)")\
+           .Define("tofHit10", "tofHit(tECALHit, 10)")\
+           .Define("tofHit30", "tofHit(tECALHit, 30)")\
+           .Define("tofHit50", "tofHit(tECALHit, 50)")\
+           .Define("tofHit100", "tofHit(tECALHit, 100)")\
+           .Define("tofHit200", "tofHit(tECALHit, 200)")\
+           .Define("tofHit300", "tofHit(tECALHit, 300)")
 
     #selection of hits
-    df = df.Define("sel_frank", "selectHits(dToLine, cal.layer, true, 10, 9999.)")\
-           .Define("sel_cyl", "selectHits(dToLine, cal.layer, false, 10, 5.)")
+    df = df.Define("sel_frank", "selectHits(dToLine, layerECALHit, true, 10, 9999.)")\
+           .Define("sel_cyl", "selectHits(dToLine, layerECALHit, false, 10, 5.)")
 
     #tofs
-    df = df.Define("tofTrue", "(rImpact - vtxMC[0].Vect()).R() / SPEED_OF_LIGHT")\
+    df = df.Define("tofTrue", "(rImpact - xyzVtxMC).R() / SPEED_OF_LIGHT")\
            .Define("tofClosest0", "tofClosest(tofHit0, dToImpact)")\
            .Define("tofFastest0", "tofFastest(tofHit0, dToImpact)")\
            .Define("tofFrank0", "fitFunc(tofHit0[sel_frank], dToImpact[sel_frank], 0)")\
@@ -95,29 +74,24 @@ def get_photons(df):
 
 def get_pions(df):
     # Check only good photons in barrel
-    df = df.Filter("nMC == 1 && abs(PDG[0]) == 211 && cal.nHits > 0 \
-            && isBackscatter[0] == 0\
-            && abs(cluster.posCluster.Z()) < 2200. && vtxMC[0].R() < 0.5").Range(1000000)
+    df = df.Filter("abs(PDG) == 211 && nECALHits > 0 && abs(xyzCluster.Z()) < 2200. && xyzVtxMC.R() < 0.5").Range(1000000)
 
     # All dependency calculations
-    df = df.Define("nHitsCluster", "int(cal.posECALHit.size())")\
-           .Define("dToImpact", "dToImpact(cal.posECALHit, XYZVector(piFit.refCalo))")\
-           .Define("dToLine", "dToLine(cal.posECALHit, XYZVector(piFit.refCalo), piFit.pCalo)")\
-           .Define("mom", "piFit.pCalo.R()")\
-           .Define("lengthIP", "abs((piFit.phiIP-piFit.phiCalo)/piFit.omegaIP)*sqrt(1. + piFit.tanLIP*piFit.tanLIP)")\
-           .Define("lengthCalo", "abs((piFit.phiIP-piFit.phiCalo)/piFit.omegaCalo)*sqrt(1. + piFit.tanLCalo*piFit.tanLCalo)")\
+    df = df.Define("dToImpact", "dToImpact(xyzECALHit, xyzTrackAtCalo)")\
+           .Define("dToLine", "dToLine(xyzECALHit, xyzTrackAtCalo, pTrackAtCalo)")\
+           .Define("mom", "pTrackAtCalo.R()")\
     # smearings of ECAL hits times
-    df = df.Define("tofHit0", "tofHit(cal.posECALHit, 0)")\
-           .Define("tofHit10", "tofHit(cal.posECALHit, 10)")\
-           .Define("tofHit30", "tofHit(cal.posECALHit, 30)")\
-           .Define("tofHit50", "tofHit(cal.posECALHit, 50)")\
-           .Define("tofHit100", "tofHit(cal.posECALHit, 100)")\
-           .Define("tofHit200", "tofHit(cal.posECALHit, 200)")\
-           .Define("tofHit300", "tofHit(cal.posECALHit, 300)")
+    df = df.Define("tofHit0", "tofHit(tECALHit, 0)")\
+           .Define("tofHit10", "tofHit(tECALHit, 10)")\
+           .Define("tofHit30", "tofHit(tECALHit, 30)")\
+           .Define("tofHit50", "tofHit(tECALHit, 50)")\
+           .Define("tofHit100", "tofHit(tECALHit, 100)")\
+           .Define("tofHit200", "tofHit(tECALHit, 200)")\
+           .Define("tofHit300", "tofHit(tECALHit, 300)")
 
     #selection of hits
-    df = df.Define("sel_frank", "selectHits(dToLine, cal.layer, true, 10, 9999.)")\
-           .Define("sel_cyl", "selectHits(dToLine, cal.layer, false, 10, 5.)")
+    df = df.Define("sel_frank", "selectHits(dToLine, layerECALHit, true, 10, 9999.)")\
+           .Define("sel_cyl", "selectHits(dToLine, layerECALHit, false, 10, 5.)")
 
     #tofs
     df = df.Define("tofClosest0", "tofClosest(tofHit0, dToImpact)")\
@@ -157,40 +131,30 @@ def get_pions(df):
 
     df.Snapshot("pions", "/nfs/dust/ilc/user/dudarboh/analysis/pions.root")
 
-    # .Define("betaCalo", "lengthCalo/(tof*SPEED_OF_LIGHT)")\
-    # .Define("betaAvg", "lengthAvg/(tof*SPEED_OF_LIGHT)")\
-    # .Define("beta75", "length75/(tof*SPEED_OF_LIGHT)")\
-    # .Define("massCalo", "pReco.Vect().R() / betaCalo * sqrt(1. - betaCalo * betaCalo) * 1000")\
-    # .Define("massAvg", "pReco.Vect().R() / betaAvg * sqrt(1. - betaAvg * betaAvg) * 1000")\
-    # .Define("mass75", "pReco.Vect().R() / beta75 * sqrt(1. - beta75 * beta75) * 1000")\
-
 
 def beta_vs_p(df):
-    # df = df.Filter("nMC == 1 && cal.nHits > 0 \
-    #         && isBackscatter[0] == 0\
-    #         && abs(cluster.posCluster.Z()) < 2200. && vtxMC[0].R() < 0.5").Range(1000000)
 
     df = df.Filter("cal.nHits > 0").Range(10000000)
 
     # All dependency calculations
-    df = df.Define("nHitsCluster", "int(cal.posECALHit.size())")\
-           .Define("dToImpact", "dToImpact(cal.posECALHit, XYZVector(piFit.refCalo))")\
-           .Define("dToLine", "dToLine(cal.posECALHit, XYZVector(piFit.refCalo), piFit.pCalo)")\
-           .Define("mom", "piFit.pCalo.R()")\
+    df = df.Define("nHitsCluster", "int(xyzECALHit.size())")\
+           .Define("dToImpact", "dToImpact(xyzECALHit, xyzTrackAtCalo)")\
+           .Define("dToLine", "dToLine(xyzECALHit, xyzTrackAtCalo, pTrackAtCalo)")\
+           .Define("mom", "pTrackAtCalo.R()")\
            .Define("lengthIP", "abs((piFit.phiIP-piFit.phiCalo)/piFit.omegaIP)*sqrt(1. + piFit.tanLIP*piFit.tanLIP)")\
            .Define("lengthCalo", "abs((piFit.phiIP-piFit.phiCalo)/piFit.omegaCalo)*sqrt(1. + piFit.tanLCalo*piFit.tanLCalo)")\
     # smearings of ECAL hits times
-    df = df.Define("tofHit0", "tofHit(cal.posECALHit, 0)")\
-           # .Define("tofHit10", "tofHit(cal.posECALHit, 10)")\
-           # .Define("tofHit30", "tofHit(cal.posECALHit, 30)")\
-           # .Define("tofHit50", "tofHit(cal.posECALHit, 50)")\
-           # .Define("tofHit100", "tofHit(cal.posECALHit, 100)")\
-           # .Define("tofHit200", "tofHit(cal.posECALHit, 200)")\
-           # .Define("tofHit300", "tofHit(cal.posECALHit, 300)")
+    df = df.Define("tofHit0", "tofHit(xyzECALHit, 0)")\
+           # .Define("tofHit10", "tofHit(xyzECALHit, 10)")\
+           # .Define("tofHit30", "tofHit(xyzECALHit, 30)")\
+           # .Define("tofHit50", "tofHit(xyzECALHit, 50)")\
+           # .Define("tofHit100", "tofHit(xyzECALHit, 100)")\
+           # .Define("tofHit200", "tofHit(xyzECALHit, 200)")\
+           # .Define("tofHit300", "tofHit(xyzECALHit, 300)")
 
     #selection of hits
-    df = df.Define("sel_frank", "selectHits(dToLine, cal.layer, true, 10, 9999.)")\
-           .Define("sel_cyl", "selectHits(dToLine, cal.layer, false, 10, 5.)")
+    df = df.Define("sel_frank", "selectHits(dToLine, layerECALHit, true, 10, 9999.)")\
+           .Define("sel_cyl", "selectHits(dToLine, layerECALHit, false, 10, 5.)")
 
     #tofs
     df = df.Define("tofClosest0", "tofClosest(tofHit0, dToImpact)")\

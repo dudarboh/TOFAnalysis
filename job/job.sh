@@ -13,9 +13,8 @@ filename=`ls *.slcio`
 
 Marlin /afs/desy.de/user/d/dudarboh/TOFAnalysis/xml/steer.xml --global.LCIOInputFiles="${filename}"
 
-# hadd ${2}.root *.root
-#
-# rm -f ../${2}.root
-# mv ${2}.root ..
-# cd ..
-# rm -rf job${2}
+mv TOFAnalysis_RENAME.root ${2}.root
+rm -f ../${2}.root
+mv ${2}.root ..
+cd ..
+rm -rf job${2}

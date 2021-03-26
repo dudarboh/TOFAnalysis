@@ -1,6 +1,5 @@
 #include "Math/Point3D.h"
 #include "Math/Vector3D.h"
-#include "Math/Vector4D.h"
 #include <random>
 using namespace ROOT::Math;
 using namespace ROOT::VecOps;
@@ -44,16 +43,16 @@ XYZVector intersection(const XYZVector& vtx, const XYZVector& p, const XYZVector
 }
 
 
-RVec <double> dToImpact(const RVec<XYZTVector>& hits, const XYZVector& rImpact){
-    auto getDistance = [&](const XYZTVector& hit) { return (hit.Vect() - rImpact).R(); };
+RVec <double> dToImpact(const RVec<XYZVector>& hits, const XYZVector& rImpact){
+    auto getDistance = [&](const XYZVector& hit) { return (hit - rImpact).R(); };
     return Map(hits, getDistance);
 }
 
 
-RVec <double> dToLine(const RVec <XYZTVector>& hits, const XYZVector& vtx, const XYZVector& p){
+RVec <double> dToLine(const RVec <XYZVector>& hits, const XYZVector& vtx, const XYZVector& p){
     RVec <double> distance;
-    for (auto&& hit:hits){
-        double d = (hit.Vect() - vtx).Cross(p.Unit()).R();
+    for (const auto& hit:hits){
+        double d = (hit - vtx).Cross(p.Unit()).R();
         distance.push_back(d);
     }
     return distance;
@@ -87,10 +86,10 @@ RVec <bool> selectHits(const RVec<double>& dToLine, const RVec<int>& layer_hit, 
 /////////////////////////TOFS//////////////////////////
 /////////////////////////TOFS//////////////////////////
 /////////////////////////TOFS//////////////////////////
-RVec <double> tofHit(const RVec <XYZTVector>& hits, int resolution=0){
+RVec <double> tofHit(const RVec <double>& tHits, int resolution=0){
     //resolution option in picoseconds
     RVec <double> tofs;
-    int nHits = hits.size();
+    int nHits = tHits.size();
     double smearing = 0.;
     for (int i = 0; i < nHits; ++i){
         if (resolution == 10) smearing = gaus10(generator);
@@ -100,7 +99,7 @@ RVec <double> tofHit(const RVec <XYZTVector>& hits, int resolution=0){
         else if (resolution == 200) smearing = gaus200(generator);
         else if (resolution == 300) smearing = gaus300(generator);
         else smearing = 0.;
-        tofs.push_back( hits[i].T() + smearing );
+        tofs.push_back( tHits[i] + smearing );
     }
     return tofs;
 }
@@ -155,11 +154,11 @@ double fitFunc(const RVec <double>& tofHit, const RVec<double>& dToImpact, const
 /////////////////////////EXTRA//////////////////////////
 /////////////////////////EXTRA//////////////////////////
 /////////////////////////EXTRA//////////////////////////
-RVec <double> residual(const RVec <XYZTVector>& hits, const RVec<double>& dToImpact,const double& par0,const double& par1){
+RVec <double> residual(const RVec <double>& tHits, const RVec<double>& dToImpact,const double& par0,const double& par1){
     RVec <double> residual;
-    int nHits = hits.size();
+    int nHits = tHits.size();
     for (int i = 0; i < nHits; ++i)
-        residual.push_back( hits[i].T() - (par0 + par1*dToImpact[i]) );
+        residual.push_back( tHits[i] - (par0 + par1*dToImpact[i]) );
     return residual;
 }
 

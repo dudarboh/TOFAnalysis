@@ -16,7 +16,10 @@ using dd4hep::rec::LayeredCalorimeterData;
 using dd4hep::Detector, dd4hep::DetType, dd4hep::DetElement, dd4hep::rec::FixedPadSizeTPCData;
 using std::cout, std::endl;
 
-bool sortbyr(TrackerHit* a, TrackerHit* b) {return Vector3D(a->getPosition()).r() < Vector3D(b->getPosition()).r();}
+bool sortbyr(TrackerHit* a, TrackerHit* b) {
+    const double* posA = a->getPosition();
+    const double* posB = b->getPosition();
+    return XYZVector(posA[0], posA[1], posA[2]).r() < XYZVector(posB[0], posB[1], posB[2]).r();}
 
 
 //This function is only to check rInner of ECAL barrel
@@ -93,8 +96,6 @@ void TOFAnalysis::init(){
     _tree->Branch("xyzVtxMC", &_xyzVtxMC);
     _tree->Branch("tVtxMC", &_tVtxMC);
     _tree->Branch("pMC", &_pMC);
-    _tree->Branch("isBackscatter", &_isBackscatter);
-    _tree->Branch("isDecayedInTracker", &_isDecayedInTracker);
 }
 
 void TOFAnalysis::processEvent(LCEvent* evt){
@@ -122,7 +123,7 @@ void TOFAnalysis::processEvent(LCEvent* evt){
             const Track* track = pfo->getTracks()[0];
 
             for (const auto& hit:track->getTrackerHits()){
-                Vector3D xyzHit = Vector3D( hit->getPosition() );
+                XYZVector xyzHit = XYZVector( hit->getPosition()[0], hit->getPosition()[1], hit->getPosition()[2] );
                 if ( xyzHit.rho() > _rTPCOuter ){
                     _xyzSETHit.push_back(xyzHit);
                     _tSETHit.push_back(hit->getTime());
@@ -133,14 +134,14 @@ void TOFAnalysis::processEvent(LCEvent* evt){
 
         //Cluster
         const Cluster* cluster = pfo->getClusters()[0];
-        _xyzCluster = Vector3D( cluster->getPosition() );
+        _xyzCluster = XYZVector( cluster->getPosition()[0], cluster->getPosition()[1], cluster->getPosition()[2] );
         // ECAL hits
         for (const auto& hit:cluster->getCalorimeterHits()){
             //Count only ECAL hits
             CHT hitType( hit->getType() );
             bool isEcal = (hitType.caloID() == CHT::ecal);
             if (!isEcal) continue;
-            Vector3D xyzHit = Vector3D( hit->getPosition() );
+            XYZVector xyzHit = XYZVector( hit->getPosition()[0], hit->getPosition()[1], hit->getPosition()[2] );
             _xyzECALHit.push_back(xyzHit);
             _tECALHit.push_back( hit->getTime() );
             _layerECALHit.push_back( hitType.layer() );
@@ -155,9 +156,9 @@ void TOFAnalysis::processEvent(LCEvent* evt){
             _lengthTrackIP = 0.;
             _lengthTrackCalo = 0.;
             _lengthTrackIntegral = 0.;
-            _pTrackAtIP = Vector3D();
-            _pTrackAtCalo = Vector3D();
-            _xyzTrackAtCalo = Vector3D();
+            _pTrackAtIP = XYZVector();
+            _pTrackAtCalo = XYZVector();
+            _xyzTrackAtCalo = XYZVector();
             _d0TrackAtCalo = 0.;
             _z0TrackAtCalo = 0.;
         }
@@ -169,15 +170,15 @@ void TOFAnalysis::processEvent(LCEvent* evt){
             _dEdXTrack = track->getdEdx();
 
             const TrackState* tsIP = track->getTrackState(TrackState::AtIP);
-            float phiIP = tsIP->getPhi();
-            float omegaIP = tsIP->getOmega();
-            float tanLIP = tsIP->getTanLambda();
-            float d0IP = tsIP->getD0();
-            float z0IP = tsIP->getZ0();
+            double phiIP = tsIP->getPhi();
+            double omegaIP = tsIP->getOmega();
+            double tanLIP = tsIP->getTanLambda();
+            double d0IP = tsIP->getD0();
+            double z0IP = tsIP->getZ0();
             const TrackState* tsCalo = track->getTrackState(TrackState::AtCalorimeter);
-            float phiCalo = tsCalo->getPhi();
-            float omegaCalo = tsCalo->getOmega();
-            float tanLCalo = tsCalo->getTanLambda();
+            double phiCalo = tsCalo->getPhi();
+            double omegaCalo = tsCalo->getOmega();
+            double tanLCalo = tsCalo->getTanLambda();
             _d0TrackAtCalo = tsCalo->getD0();
             _z0TrackAtCalo = tsCalo->getZ0();
 
@@ -185,26 +186,26 @@ void TOFAnalysis::processEvent(LCEvent* evt){
             _lengthTrackCalo = abs( (phiIP - phiCalo)/omegaCalo )*sqrt(1. + tanLCalo*tanLCalo);
 
             const TrackState* tsFirst = track->getTrackState(TrackState::AtFirstHit);
-            float phiFirst = tsFirst->getPhi();
+            double phiFirst = tsFirst->getPhi();
             const TrackState* tsLast = track->getTrackState(TrackState::AtLastHit);
-            float phiLast = tsLast->getPhi();
+            double phiLast = tsLast->getPhi();
             _lengthTrackIntegral = abs( (phiIP - phiFirst)/omegaIP )*sqrt(1. + tanLIP*tanLIP) + abs( (phiLast - phiCalo)/omegaCalo )*sqrt(1. + tanLCalo*tanLCalo);
 
             vector <TrackerHit*> trackHits = track->getTrackerHits();
             sort(trackHits.begin(), trackHits.end(), sortbyr);
             for (size_t j=1; j < trackHits.size(); ++j){
-                _lengthTrackIntegral += (Vector3D(trackHits[j]->getPosition()) - Vector3D(trackHits[j-1]->getPosition())).r();
+                _lengthTrackIntegral += (XYZVector(trackHits[j]->getPosition()[0], trackHits[j]->getPosition()[1], trackHits[j]->getPosition()[2]) - XYZVector(trackHits[j-1]->getPosition()[0], trackHits[j-1]->getPosition()[1], trackHits[j-1]->getPosition()[2])).r();
             }
 
             HelixClass helixIP;
             helixIP.Initialize_Canonical(phiIP, d0IP, z0IP, omegaIP, tanLIP, _bField[2]/dd4hep::tesla);
-            _pTrackAtIP = Vector3D( helixIP.getMomentum() );
+            _pTrackAtIP = XYZVector( helixIP.getMomentum()[0], helixIP.getMomentum()[1], helixIP.getMomentum()[2] );
 
             HelixClass helixCalo;
             helixCalo.Initialize_Canonical(phiCalo, _d0TrackAtCalo, _z0TrackAtCalo, omegaCalo, tanLCalo, _bField[2]/dd4hep::tesla);
-            _pTrackAtCalo = Vector3D( helixCalo.getMomentum() );
+            _pTrackAtCalo = XYZVector( helixCalo.getMomentum()[0], helixCalo.getMomentum()[1], helixCalo.getMomentum()[2] );
 
-            _xyzTrackAtCalo = Vector3D( tsCalo->getReferencePoint() );
+            _xyzTrackAtCalo = XYZVector( tsCalo->getReferencePoint()[0], tsCalo->getReferencePoint()[1], tsCalo->getReferencePoint()[2] );
         }
         //PFOs MCParticle
         const vector <LCObject*>& relationObjects = relation.getRelatedToObjects(pfo);
@@ -214,11 +215,9 @@ void TOFAnalysis::processEvent(LCEvent* evt){
 
         _weightMC = relationWeights[idxMaxWeight];
         _PDG = mcPFO->getPDG();
-        _xyzVtxMC = Vector3D( mcPFO->getVertex() );
+        _xyzVtxMC = XYZVector( mcPFO->getVertex()[0], mcPFO->getVertex()[1], mcPFO->getVertex()[2] );
         _tVtxMC = mcPFO->getTime();
-        _pMC = Vector3D( mcPFO->getMomentum() );
-        _isBackscatter = mcPFO->isBackscatter();
-        _isDecayedInTracker = mcPFO->isDecayedInTracker();
+        _pMC = XYZVector( mcPFO->getMomentum()[0], mcPFO->getMomentum()[1], mcPFO->getMomentum()[2] );
 
         // Fill tree after everything is done
         _tree->Fill();
