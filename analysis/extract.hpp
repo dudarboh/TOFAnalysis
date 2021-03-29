@@ -149,6 +149,13 @@ double fitFunc(const RVec <double>& tofHit, const RVec<double>& dToImpact, const
 }
 
 
+double tofAvg(const RVec <double>& tofHit, const RVec<double>& dToImpact){
+    int nHits = tofHit.size();
+    double tofSum = 0.;
+    for(int i=0; i < nHits; ++i) tofSum += tofHit[i] - dToImpact[i]/SPEED_OF_LIGHT;
+    return tofSum/nHits;
+}
+
 
 
 /////////////////////////EXTRA//////////////////////////

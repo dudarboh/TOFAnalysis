@@ -1,113 +1,103 @@
 import ROOT
 import numpy as np
+# ROOT.EnableImplicitMT(4)
 
-ROOT.gStyle.SetPalette(1)
+methods = [
+["pTrackAtCalo", "lengthTrackCalo", "Cyl", "0.0"],
+["pTrackAtCalo", "lengthTrackCalo", "Cyl", "10.0"],
+["pTrackAtCalo", "lengthTrackCalo", "Cyl", "50.0"],
+["pTrackAtCalo", "lengthTrackCalo", "Cyl", "100.0"]
+]
 
-# # 2f_Z_hadronic data
-ch = ROOT.TChain("TOFAnalysis")
-ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
-ROOT.gInterpreter.Declare('#include "extract.hpp"')
+
+# methods = [
+# ["pTrackAtIP", "lengthTrackIP", "FrankAvg", "0.0"],
+# ["pTrackAtIP", "lengthTrackIP", "FrankAvg", "10.0"],
+# ["pTrackAtIP", "lengthTrackIP", "FrankAvg", "50.0"],
+# ["pTrackAtIP", "lengthTrackIP", "FrankAvg", "100.0"]
+# ]
+
+# methods = [
+# ["pTrackAtCalo", "lengthTrackCalo", "Frank", "0.0"],
+# ["pTrackAtCalo", "lengthTrackCalo", "Frank", "10.0"],
+# ["pTrackAtCalo", "lengthTrackCalo", "Frank", "50.0"],
+# ["pTrackAtCalo", "lengthTrackCalo", "Frank", "100.0"]
+# ]
 
 
+def beta_vs_p(tree_name):
+    canvas = ROOT.TCanvas("beta_vs_p_{}".format(tree_name))
+    df = ROOT.RDataFrame(tree_name, "./final_roots/" + tree_name + ".root")
+    # gr_bg = df.Filter("abs(PDG) != 2212 && abs(PDG) != 321 && abs(PDG) != 211").Graph("mom", "beta")
+    gr_pion = df.Filter("abs(PDG) == 211").Graph("mom", "beta")
+    gr_kaon = df.Filter("abs(PDG) == 321").Graph("mom", "beta")
+    gr_proton = df.Filter("abs(PDG) == 2212").Graph("mom", "beta")
 
-def get_beta(momentum="pTrackAtCalo", length="lengthTrackCalo", tof="Closest", smearing=0.):
-    df = ROOT.RDataFrame(ch)
-    df = df.Range(50000).Filter("nECALHits > 0")
 
-    df = df.Define("mom", "{}.R()".format(momentum))
-    df = df.Define("tofHit", "tofHit(tECALHit, {})".format(smearing))
-    if tof == "Closest":
-        df = df.Define("dToImpact", "dToImpact(xyzECALHit, xyzTrackAtCalo)")\
-               .Define("tof", "tofClosest(tofHit, dToImpact)")
-    elif tof == "Fastest":
-        df = df.Define("dToImpact", "dToImpact(xyzECALHit, xyzTrackAtCalo)")\
-               .Define("tof", "tofFastest(tofHit, dToImpact)")
-    elif tof == "Frank":
-        df = df.Define("dToImpact", "dToImpact(xyzECALHit, xyzTrackAtCalo)")\
-               .Define("dToLine", "dToLine(xyzECALHit, xyzTrackAtCalo, pTrackAtCalo)")\
-               .Define("sel_frank", "selectHits(dToLine, layerECALHit, true, 10, 9999.)")\
-               .Define("tof", "fitFunc(tofHit[sel_frank], dToImpact[sel_frank], 0)")
-    elif tof == "Cyl":
-        df = df.Define("dToImpact", "dToImpact(xyzECALHit, xyzTrackAtCalo)")\
-               .Define("dToLine", "dToLine(xyzECALHit, xyzTrackAtCalo, pTrackAtCalo)")\
-               .Define("sel_cyl", "selectHits(dToLine, layerECALHit, false, 10, 5.)")\
-               .Define("tof", "fitFunc(tofHit[sel_cyl], dToImpact[sel_cyl], 0)")
-    elif tof == "All":
-        df = df.Define("dToImpact", "dToImpact(xyzECALHit, xyzTrackAtCalo)")\
-               .Define("tof", "fitFunc(tofHit, dToImpact, 0)")
-    elif tof == "FrankAvg":
-        # FIXME: Change to average instead of the fit
-        df = df.Define("dToImpact", "dToImpact(xyzECALHit, xyzTrackAtCalo)")\
-               .Define("dToLine", "dToLine(xyzECALHit, xyzTrackAtCalo, pTrackAtCalo)")\
-               .Define("sel_frank", "selectHits(dToLine, layerECALHit, true, 10, 9999.)")\
-               .Define("tof", "fitFunc(tofHit[sel_frank], dToImpact[sel_frank], 0)")
-
-    df = df.Define("beta", "{}/(tof * SPEED_OF_LIGHT)".format(length))
-    return df
-
-def beta_vs_p(df):
-    canvas = ROOT.TCanvas("beta_vs_p")
-    gr_pion = df.Filter("PDG == 211").Graph("mom", "beta")
+    gr_pion.Draw("AP")
     gr_pion.SetMarkerColor(2)
-    gr_pion.SetTitle("Pions")
-    gr_pion.SetLineWidth(5)
+    gr_pion.SetTitle("Pions;p, [GeV];#beta")
+    gr_pion.SetLineWidth(1)
     gr_pion.SetLineColor(2)
+    gr_pion.GetXaxis().SetRangeUser(1., 10.)
+    gr_pion.GetYaxis().SetRangeUser(0.7, 1.1)
 
-    gr_kaon = df.Filter("PDG == 321").Graph("mom", "beta")
+
+    gr_kaon.Draw("Psame")
     gr_kaon.SetMarkerColor(3)
     gr_kaon.SetTitle("Kaons")
-    gr_kaon.SetLineWidth(5)
+    gr_kaon.SetLineWidth(1)
     gr_kaon.SetLineColor(3)
 
-    gr_proton = df.Filter("PDG == 2212").Graph("mom", "beta")
+    gr_proton.Draw("Psame")
     gr_proton.SetMarkerColor(4)
     gr_proton.SetTitle("Protons")
-    gr_proton.SetLineWidth(5)
+    gr_proton.SetLineWidth(1)
     gr_proton.SetLineColor(4)
 
-    gr_bg = df.Filter("PDG != 2212 && PDG != 321 && PDG != 211").Graph("mom", "beta")
-    gr_bg.SetMarkerColor(1)
-    gr_bg.SetTitle("Background")
-    gr_bg.SetLineWidth(5)
-    gr_bg.SetLineColor(1)
-
-    gr_bg.Draw("AP")
-    gr_bg.GetXaxis().SetRangeUser(1., 10.)
-    gr_bg.GetYaxis().SetRangeUser(0.7, 1.1)
-
-    gr_pion.Draw("Psame")
-    gr_kaon.Draw("Psame")
-    gr_proton.Draw("Psame")
-
-
+    # gr_bg.Draw("Psame")
+    # gr_bg.SetMarkerColor(1)
+    # gr_bg.SetTitle("Background")
+    # gr_bg.SetLineWidth(1)
+    # gr_bg.SetLineColor(1)
+    canvas.BuildLegend(0.5, 0.2, 0.8, 0.5)
+    gr_pion.SetTitle(tree_name)
     canvas.Update()
-    return canvas, gr_bg, gr_pion, gr_kaon, gr_proton
+    input("wait")
+
+# for m in methods:
+#     beta_vs_p("_".join(m))
 
 
-def check_band_fit(df, pdg=211):
-    canvas = ROOT.TCanvas("c{}".format(pdg))
-    canvas.Divide(2, 2)
-    h = df.Filter("abs(PDG) == {}".format(pdg)).Histo2D(("h{}".format(pdg), "PDG: {}".format(pdg), 100, 1., 10., 2000, 0.7, 1.1 ), "mom", "beta")
+def band_fit(tree_name, pdg=211):
+    df = ROOT.RDataFrame(tree_name, "./final_roots/" + tree_name + ".root")
 
-    canvas.cd(1)
-    h.Draw("colz")
+    if pdg == 211:
+        h = df.Filter("abs(PDG) == {}".format(pdg)).Histo2D(("h{}".format(pdg), "PDG: {}".format(pdg), 90, 1., 10., 2000, 0.95, 1.05 ), "mom", "beta")
+    elif pdg == 321:
+        h = df.Filter("abs(PDG) == {}".format(pdg)).Histo2D(("h{}".format(pdg), "PDG: {}".format(pdg), 90, 1., 10., 500, 0.85, 1.05 ), "mom", "beta")
+    elif pdg == 2212:
+        h = df.Filter("abs(PDG) == {}".format(pdg)).Histo2D(("h{}".format(pdg), "PDG: {}".format(pdg), 90, 1., 10., 250, 0.7, 1.05 ), "mom", "beta")
+
     h.FitSlicesY()
-    # h.FitSlicesY(0,0,-1,100)
-
-    canvas.cd(2)
-    h_chi2 = ROOT.gROOT.FindObject("h{}_chi2".format(pdg))
-    h_chi2.Draw()
-
-    canvas.cd(3)
     h_1 = ROOT.gROOT.FindObject("h{}_1".format(pdg))
-    h_1.Draw()
-
-    canvas.cd(4)
     h_2 = ROOT.gROOT.FindObject("h{}_2".format(pdg))
-    h_2.Draw()
-    canvas.Update()
-    return canvas, h, h_1, h_2
+    h_chi2 = ROOT.gROOT.FindObject("h{}_chi2".format(pdg))
 
+    # canvas = ROOT.TCanvas("fit_slices_{}".format(pdg))
+    # canvas.Divide(2, 2)
+    # canvas.cd(1)
+    # h.Draw("colz")
+    # canvas.cd(2)
+    # h_chi2.Draw()
+    # canvas.cd(3)
+    # h_1.Draw()
+    # canvas.cd(4)
+    # h_2.Draw()
+    # canvas.Update()
+
+    # Log Bins code. Might be needed later...
+    # input("wait")
     # nBinsX = 100
     # nBinsY = 200
     # # log10(min/max momentum / GeV)
@@ -124,9 +114,9 @@ def check_band_fit(df, pdg=211):
     #     histbinsY.append( minBinY+ (maxBinY-minBinY)*i/nBinsY )
 
 
+    return h, h_1, h_2
+
 def sep_power(h_mean1, h_mean2, h_std1, h_std2):
-    canvas = ROOT.TCanvas("sep_power")
-    print(h_mean1.GetNbinsX())
     gr = ROOT.TGraph()
     gr.SetMarkerStyle(20)
     for i in range(1, h_mean1.GetNbinsX()+1):
@@ -136,17 +126,40 @@ def sep_power(h_mean1, h_mean2, h_std1, h_std2):
         std2 = h_std2.GetBinContent(i)
 
         sep_power = abs(m1-m2) / np.sqrt( (std1*std1 + std2*std2)/2. )
-        gr.SetPoint(i, h_mean1.GetBinCenter(i), sep_power)
+        gr.SetPoint(i-1, h_mean1.GetBinCenter(i), sep_power)
 
-    gr.Draw("AP")
-    return canvas, gr
+    # gr.Draw("AP")
+    # input("wait")
+    return gr
 
-df = get_beta()
-c_beta_vs_p, gr_bg, gr_pion, gr_kaon, gr_proton = beta_vs_p(df)
-c_pion, h_pion, h_pion_mean, h_pion_std = check_band_fit(df, pdg=211)
-c_kaon, h_kaon, h_kaon_mean, h_kaon_std = check_band_fit(df, pdg=321)
-c_proton, h_proton, h_proton_mean, h_proton_std = check_band_fit(df, pdg=2212)
 
-c_sep_power, gr = sep_power(h_pion_mean, h_kaon_mean, h_pion_std, h_kaon_std)
+graphs_pik = []
+graphs_kp = []
+for m in methods:
+    h_pion, h_pion_mean, h_pion_std = band_fit("_".join(m), pdg=211)
+    h_kaon, h_kaon_mean, h_kaon_std = band_fit("_".join(m), pdg=321)
+    h_proton, h_proton_mean, h_proton_std = band_fit("_".join(m), pdg=2212)
+    graphs_pik.append( sep_power(h_pion_mean, h_kaon_mean, h_pion_std, h_kaon_std) )
+    graphs_kp.append( sep_power(h_kaon_mean, h_proton_mean, h_kaon_std, h_proton_std) )
 
+
+
+
+
+canvas = ROOT.TCanvas("sep_power_plots")
+mg = ROOT.TMultiGraph()
+mg.SetTitle("#pi^{#pm}/K^{#pm} separation power for different TOF methods; p, [GeV]; Sep. Power, [#sigma]")
+# mg.SetTitle("K^{#pm}/p^{#pm} separation power for different TOF methods; p, [GeV]; Sep. Power, [#sigma]")
+for i, gr in enumerate(graphs_pik):
+    gr.SetTitle("_".join(methods[i]))
+    gr.SetLineColor(i+1)
+    gr.SetMarkerColor(i+1)
+    gr.SetLineWidth(1)
+    mg.Add(gr, "PL")
+
+mg.Draw("A")
+canvas.SetGridx()
+canvas.SetGridy()
+canvas.BuildLegend(0.5, 0.2, 0.8, 0.5)
+canvas.Update()
 input("wait")
