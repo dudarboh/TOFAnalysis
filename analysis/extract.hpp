@@ -18,7 +18,8 @@ std::normal_distribution <double> gaus100(0., 0.1);
 std::normal_distribution <double> gaus200(0., 0.2);
 std::normal_distribution <double> gaus300(0., 0.3);
 
-
+TCanvas* canvas = new TCanvas("canvas", "title", 1920, 1600);
+int pic = 0;
 XYZVector getECALPlane(const double& phiCluster){
     int nSides = 8;
     double side = 2 * M_PI / nSides;
@@ -117,10 +118,9 @@ double tofFastest(const RVec<double>& tofHit, const RVec<double>& dToImpact){
 }
 
 
-double fitFunc(const RVec <double>& tofHit, const RVec<double>& dToImpact, const int opt=0){
+double fitFunc(const RVec <double>& tofHit, const RVec<double>& dToImpact, const int opt=0, int limits=0){
     int nHits = tofHit.size();
     if(nHits <= 1) return 0;
-
     vector<double> x;
     vector<double> x_err;
     vector<double> y;
@@ -131,19 +131,31 @@ double fitFunc(const RVec <double>& tofHit, const RVec<double>& dToImpact, const
         y.push_back(tofHit[i]);
         x_err.push_back(0.);
         y_err.push_back(0.1);
-        // y_err.push_back(0.0121634); // for ALL hits
-        // y_err.push_back(0.00325199); // for 4 mm cylinder hits
-        // y_err.push_back(4.72659e-03); // for 10 mm cylinder hits
     }
+
     TGraphErrors gr(x.size(), &x[0], &y[0], &x_err[0], &y_err[0]);
-    gr.Fit("pol1", "Q");
+    TF1* fit = new TF1("fit", "pol1");
+    if (limits){
+        fit->SetParameters(5., 1./(0.95*SPEED_OF_LIGHT));
+        fit->SetParLimits(0, 5., 20.);
+        fit->SetParLimits(1, 1./(1.01*SPEED_OF_LIGHT), 1./(0.5*SPEED_OF_LIGHT));
+    }
+
+    if (limits){
+        gr.Fit(fit, "QB");
+    }
+    else{
+        gr.Fit(fit, "Q");
+    }
+
+    fit = gr.GetFunction("fit");
 
     double result = -1;
     switch (opt) {
-        case 0: result = gr.GetFunction("pol1")->GetParameter(0); break;
-        case 1: result = gr.GetFunction("pol1")->GetParameter(1); break;
-        case 2: result = gr.GetFunction("pol1")->GetChisquare(); break;
-        case 3: result = gr.GetFunction("pol1")->GetNDF(); break;
+        case 0: result = fit->GetParameter(0); break;
+        case 1: result = 1./fit->GetParameter(1); break;
+        case 2: result = fit->GetChisquare(); break;
+        case 3: result = fit->GetNDF(); break;
     }
     return result;
 }
@@ -154,6 +166,111 @@ double tofAvg(const RVec <double>& tofHit, const RVec<double>& dToImpact){
     double tofSum = 0.;
     for(int i=0; i < nHits; ++i) tofSum += tofHit[i] - dToImpact[i]/SPEED_OF_LIGHT;
     return tofSum/nHits;
+}
+
+int fit_analysis(const RVec <double>& tofHit, const RVec<double>& dToImpact, const RVec <double>& tofHitNoSmearing, int pdg, XYZVector p, int nClusterHits){
+    cout<< "Debug1"<<endl;
+    int nHits = tofHit.size();
+    cout<< "N hits"<<nHits<<endl;
+    if(nHits <= 1) return 0;
+    vector<double> x;
+    vector<double> x_err;
+    vector<double> y;
+    vector<double> y_err;
+    vector<double> y_no_smear;
+
+
+    for(int i=0; i < nHits; ++i){
+        x.push_back(dToImpact[i]);
+        y.push_back(tofHit[i]);
+        x_err.push_back(0.);
+        y_err.push_back(0.1);
+        y_no_smear.push_back(tofHitNoSmearing[i]);
+    }
+    cout<< "Debug2"<<endl;
+
+    TGraphErrors gr(x.size(), &x[0], &y[0], &x_err[0], &y_err[0]);
+    TGraphErrors gr_no_smear(x.size(), &x[0], &y_no_smear[0], &x_err[0], &y_err[0]);
+    TF1* fit = new TF1("fit", "pol1");
+    TF1* fit_no_smear = new TF1("fit_no_smear", "pol1");
+    TF1* fit_limits = new TF1("fit_limits", "pol1");
+    fit_limits->SetParameters(5., 1./(0.95*SPEED_OF_LIGHT));
+    fit_limits->SetParLimits(0, 5., 20.);
+    fit_limits->SetParLimits(1, 1./(1.01*SPEED_OF_LIGHT), 1./(0.5*SPEED_OF_LIGHT));
+    TF1* f_2 = new TF1("f_2", "pol1", 0, 500);
+    TF1* f_1 = new TF1("f_1", "pol1", 0, 500);
+    TF1* f_22 = new TF1("f_22", "pol1", 0, 500);
+    TF1* f_11 = new TF1("f_11", "pol1", 0, 500);
+
+    cout<< "Debug3"<<endl;
+    gr.Fit(fit);
+    fit = gr.GetFunction("fit");
+    gr.Fit(fit_limits, "B+");
+    fit_limits = gr.GetFunction("fit_limits");
+    gr_no_smear.Fit(fit_no_smear, "B+");
+    fit_no_smear = gr_no_smear.GetFunction("fit_no_smear");
+    cout<< "Debug4"<<endl;
+
+    gr.SetTitle("ECAL hits, 100 ps");
+    gr.SetMarkerStyle(20);
+    gr.SetMarkerColor(1);
+    gr.SetLineColor(1);
+    gr.SetLineWidth(1);
+    fit->SetLineColor(1);
+    fit->SetLineWidth(3);
+    fit->SetTitle("Fit 100 ps");
+    fit->SetNpx(1000);
+
+    gr_no_smear.SetTitle("ECAL hits, 0 ps");
+    gr_no_smear.SetMarkerStyle(20);
+    gr_no_smear.SetMarkerColor(4);
+    gr_no_smear.SetLineColor(4);
+    gr_no_smear.SetLineWidth(1);
+    fit_no_smear->SetLineColor(4);
+    fit_no_smear->SetLineWidth(3);
+    fit_no_smear->SetTitle("Fit 0 ps");
+    fit_no_smear->SetNpx(1000);
+
+    fit_limits->SetLineColor(2);
+    fit_limits->SetLineWidth(3);
+    fit_limits->SetTitle("Fit 100 ps + param limits");
+    fit_limits->SetNpx(1000);
+    cout<< "Debug5"<<endl;
+
+
+    TMultiGraph mg = TMultiGraph();
+    mg.Add(&gr, "P");
+    mg.Add(&gr_no_smear, "P");
+    mg.Draw("A");
+    mg.SetTitle("Trying to improve fit; d to impact, [mm]; Time, [ns]");
+    mg.GetXaxis()->SetLimits(0., mg.GetXaxis()->GetBinUpEdge(mg.GetXaxis()->GetLast()));
+
+    cout<< "Debug6"<<endl;
+    fit->Draw("same");
+    fit_no_smear->Draw("same");
+    fit_limits->Draw("same");
+    cout<< "Debug7"<<endl;
+    canvas->BuildLegend(0.1, 0.7, 0.3, 0.9);
+
+    TLatex text;
+    text.SetTextSize(0.02);
+    text.DrawLatexNDC(0.35, 0.88, (const char*)Form("PDG (%d)" , pdg));
+    text.DrawLatexNDC(0.35, 0.86, (const char*)Form("nECALHits (%d)", nClusterHits));
+    text.DrawLatexNDC(0.35, 0.84, (const char*)Form("pt (%f.2 GeV)", p.Rho()));
+    text.DrawLatexNDC(0.35, 0.82, (const char*)Form("p (%f.2 GeV)", p.R()));
+    text.DrawLatexNDC(0.35, 0.8, Form("#theta (%f.2) degree", p.Theta()/(2.*3.1415692)*180.));
+    text.DrawLatexNDC(0.12, 0.68, Form("#color[4]{TOF 0ps (%f.2), [ns]}", fit_no_smear->GetParameter(0)));
+    text.DrawLatexNDC(0.12, 0.66, Form("TOF 100ps (%f.2), [ns]", fit->GetParameter(0)));
+    text.DrawLatexNDC(0.12, 0.64, Form("#color[2]{TOF 100ps par limits (%f.2), [ns]}", fit_limits->GetParameter(0)));
+    text.DrawLatexNDC(0.12, 0.62, Form("#color[4]{#beta 0ps (%f.2), [mm/ns]}", 1./fit_no_smear->GetParameter(1)));
+    text.DrawLatexNDC(0.12, 0.6, Form("#beta 100ps (%f.2), [mm/ns]", 1./fit->GetParameter(1)));
+    text.DrawLatexNDC(0.12, 0.58, Form("#color[2]{#beta 100ps par limits (%f.2), [mm/ns]}", 1./fit_limits->GetParameter(1)));
+
+    canvas->Modified();
+    canvas->Update();
+    // cin.get();
+    canvas->Print(Form("./fit_analysis_pics/%d.png", pic++));
+    return true;
 }
 
 

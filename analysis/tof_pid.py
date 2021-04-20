@@ -3,27 +3,9 @@ import numpy as np
 # ROOT.EnableImplicitMT(4)
 
 methods = [
-["pTrackAtCalo", "lengthTrackCalo", "Cyl", "0.0"],
-["pTrackAtCalo", "lengthTrackCalo", "Cyl", "10.0"],
-["pTrackAtCalo", "lengthTrackCalo", "Cyl", "50.0"],
-["pTrackAtCalo", "lengthTrackCalo", "Cyl", "100.0"]
+"pTrackAtIP_lengthTrackIP_FrankAvg_100.0",
+"pTrackAtIP_lengthTrackIP_Frank_100.0"
 ]
-
-
-# methods = [
-# ["pTrackAtIP", "lengthTrackIP", "FrankAvg", "0.0"],
-# ["pTrackAtIP", "lengthTrackIP", "FrankAvg", "10.0"],
-# ["pTrackAtIP", "lengthTrackIP", "FrankAvg", "50.0"],
-# ["pTrackAtIP", "lengthTrackIP", "FrankAvg", "100.0"]
-# ]
-
-# methods = [
-# ["pTrackAtCalo", "lengthTrackCalo", "Frank", "0.0"],
-# ["pTrackAtCalo", "lengthTrackCalo", "Frank", "10.0"],
-# ["pTrackAtCalo", "lengthTrackCalo", "Frank", "50.0"],
-# ["pTrackAtCalo", "lengthTrackCalo", "Frank", "100.0"]
-# ]
-
 
 def beta_vs_p(tree_name):
     canvas = ROOT.TCanvas("beta_vs_p_{}".format(tree_name))
@@ -65,8 +47,8 @@ def beta_vs_p(tree_name):
     canvas.Update()
     input("wait")
 
-# for m in methods:
-#     beta_vs_p("_".join(m))
+for m in methods:
+    beta_vs_p(m)
 
 
 def band_fit(tree_name, pdg=211):
@@ -133,12 +115,28 @@ def sep_power(h_mean1, h_mean2, h_std1, h_std2):
     return gr
 
 
+
+def compare_slope(tree_name):
+    canvas = ROOT.TCanvas("beta_vs_p_{}".format(tree_name))
+    df = ROOT.RDataFrame(tree_name, "./final_roots/" + tree_name + ".root")
+    # gr_bg = df.Filter("abs(PDG) != 2212 && abs(PDG) != 321 && abs(PDG) != 211").Graph("mom", "beta")
+    h_pion = df.Filter("abs(PDG) == 211").Histo1D(("h_pion", "Pions", 1000, -0.01, 0.03), "slope")
+    h_kaon = df.Filter("abs(PDG) == 321").Histo1D(("h_kaon", "Kaons", 1000, -0.01, 0.03), "slope")
+    h_proton = df.Filter("abs(PDG) == 2212").Histo1D(("h_protons", "Protons", 1000, -0.01, 0.03), "slope")
+    h_pion.Draw()
+    h_kaon.Draw("same")
+    h_kaon.SetLineColor(2)
+    h_proton.Draw("same")
+    h_proton.SetLineColor(3)
+    input("sait")
+
 graphs_pik = []
 graphs_kp = []
 for m in methods:
-    h_pion, h_pion_mean, h_pion_std = band_fit("_".join(m), pdg=211)
-    h_kaon, h_kaon_mean, h_kaon_std = band_fit("_".join(m), pdg=321)
-    h_proton, h_proton_mean, h_proton_std = band_fit("_".join(m), pdg=2212)
+    # compare_slope(m)
+    h_pion, h_pion_mean, h_pion_std = band_fit(m, pdg=211)
+    h_kaon, h_kaon_mean, h_kaon_std = band_fit(m, pdg=321)
+    h_proton, h_proton_mean, h_proton_std = band_fit(m, pdg=2212)
     graphs_pik.append( sep_power(h_pion_mean, h_kaon_mean, h_pion_std, h_kaon_std) )
     graphs_kp.append( sep_power(h_kaon_mean, h_proton_mean, h_kaon_std, h_proton_std) )
 
