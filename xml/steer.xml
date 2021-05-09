@@ -2,7 +2,7 @@
 
 
     <constants>
-        <constant name="DetectorModel" value="ILD_l5_o1_v02" />
+        <constant name="DetectorName" value="ILD_l5_o1_v02" />
 	</constants>
 
 
@@ -17,6 +17,7 @@
 
 	<execute>
         <processor name="InitDD4hep" />
+        <processor name="MyGenericViewer"/>
         <processor name="MyTOFAnalysis"/>
 	</execute>
 
@@ -24,11 +25,31 @@
     <processor name="InitDD4hep" type="InitializeDD4hep">
         <!--InitializeDD4hep reads a compact xml file and initializes the DD4hep::LCDD object-->
         <parameter name="DD4hepXMLFile" type="string">
-            /cvmfs/ilc.desy.de/sw/x86_64_gcc82_centos7/v02-02/lcgeo/v00-16-06/ILD/compact/${DetectorModel}/${DetectorModel}.xml
+            /cvmfs/ilc.desy.de/sw/x86_64_gcc82_centos7/v02-02/lcgeo/v00-16-06/ILD/compact/${DetectorName}/${DetectorName}.xml
         </parameter>
     </processor>
 
 
     <processor name="MyTOFAnalysis" type="TOFAnalysis"></processor>
+
+    <processor name="MyGenericViewer" type="GenericViewer">
+        <!--Sim Calo Hit Collection Names-->
+        <parameter name="SimCaloHitCollections" type="StringVec" lcioInType="SimCalorimeterHit">
+            BeamCalCollection EcalBarrelCollection EcalBarrelPreShowerCollection EcalEndcapCollection
+            EcalEndcapPreShowerCollection EcalEndcapRingCollection EcalEndcapRingPreShowerCollection
+            HcalBarrelRegCollection HcalEndCapRingsCollection HcalEndCapsCollection
+            LHcalCollectionLumiCalCollection MuonEndCapCollection
+        </parameter>
+        <!--Sim Tracker Hit Collection Names-->
+        <parameter name="SimTrackerHitCollections" type="StringVec" lcioInType="SimTrackerHit">
+            ETDCollection FTDCollection SETCollection SITCollection TPCCollection
+            TPCSpacePointCollection VXDCollection
+        </parameter>
+        <!--Layer for Sim Calo Hits-->
+        <parameter name="LayerSimCaloHit" type="int" value="5"/>
+        <!--Layer for Sim Tracker Hits-->
+        <parameter name="LayerSimTrackerHit" type="int" value="6"/>
+    </processor>
+
 
 </marlin>

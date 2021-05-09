@@ -44,6 +44,13 @@ TOFAnalysis::TOFAnalysis() : Processor("TOFAnalysis"){
                                string("Name of the output root file"),
                                _outputFileName,
                                string("TOFAnalysis_RENAME.root"));
+
+    registerOutputCollection( LCIO::RECONSTRUCTEDPARTICLE,
+                             "OutputCollection",
+                             "Collection of bad PFOs particles",
+                             _outCol,
+                             std::string("BadPFOs"));
+
 }
 
 void TOFAnalysis::init(){
@@ -108,6 +115,8 @@ void TOFAnalysis::processEvent(LCEvent* evt){
     LCCollection* colPFO = evt->getCollection("PandoraPFOs");
     LCCollection* colRelation = evt->getCollection("RecoMCTruthLink");
     LCRelationNavigator relation(colRelation);
+
+    LCCollectionVec* outCol = new LCCollectionVec( LCIO::RECONSTRUCTEDPARTICLE );
 
     for (int i=0; i<colPFO->getNumberOfElements(); ++i){
         ReconstructedParticle* pfo = dynamic_cast <ReconstructedParticle*> ( colPFO->getElementAt(i) );

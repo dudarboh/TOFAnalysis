@@ -7,11 +7,11 @@ ch = ROOT.TChain("TOFAnalysis")
 # # 2f_Z_hadronic data
 ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
 
-canvas = ROOT.TCanvas()
+canvas = ROOT.TCanvas("")
 canvas.Divide(2, 1)
 
 for i, event in enumerate(ch):
-    if not (event.nECALHits > 0 and abs(event.xyzCluster.Z() < 2200.)):
+    if not (event.nECALHits > 0 and abs(event.xyzCluster.Z() < 2200.) and abs(event.xyzVtxMC.R() < .5)):
         continue
     canvas.cd(1)
     x0 = event.xyzTrackAtCalo.X()

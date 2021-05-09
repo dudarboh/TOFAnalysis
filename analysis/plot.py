@@ -1,7 +1,7 @@
 import ROOT
 import numpy as np
 
-ROOT.EnableImplicitMT(2)
+ROOT.EnableImplicitMT(4)
 ROOT.gStyle.SetPalette(1)
 ROOT.gStyle.SetPadGridX(1)
 ROOT.gStyle.SetPadGridY(1)
@@ -10,7 +10,7 @@ ROOT.gStyle.SetOptStat(1110)
 ROOT.gInterpreter.Declare('#include "plot.hpp"')
 
 def plot_pions():
-    canvas = ROOT.TCanvas()
+    canvas = ROOT.TCanvas("name", "name", 800, 800)
     df = ROOT.RDataFrame("pions", "/nfs/dust/ilc/user/dudarboh/analysis/pions.root")
 
     smearings = [0, 10, 30, 50, 100, 200, 300]
@@ -18,7 +18,7 @@ def plot_pions():
     for s in smearings:
         for m in methods:
             df = df.Define("beta{1}{0}".format(s, m), "lengthCalo/(tof{1}{0}*SPEED_OF_LIGHT)".format(s, m))
-            df = df.Define("betaCalib{1}{0}".format(s, m), "lengthCalo/(calibrateTOF(tof{1}{0}, nHitsCluster, \"{1}\")*SPEED_OF_LIGHT)".format(s, m))
+            df = df.Define("betaCalib{1}{0}".format(s, m), "lengthCalo/(calibrateTOF(tof{1}{0}, nECALHits, \"{1}\")*SPEED_OF_LIGHT)".format(s, m))
             df = df.Define("mass{1}{0}".format(s, m), "mom / beta{1}{0} * sqrt(1. - beta{1}{0} * beta{1}{0}) * 1000".format(s, m))
             df = df.Define("massCalib{1}{0}".format(s, m), "mom / betaCalib{1}{0} * sqrt(1. - betaCalib{1}{0} * betaCalib{1}{0}) * 1000".format(s, m))
 
@@ -60,7 +60,7 @@ def plot_photons():
     # fit slices
     # fit slices
     # fit slices
-    # canvas = ROOT.TCanvas()
+    # canvas = ROOT.TCanvas("name", "name", 800, 800)
     # canvas.Divide(2, 2)
 
     # df = df.Define("ratioClosest", "tofClosest0/tofTrue")\
@@ -69,7 +69,7 @@ def plot_photons():
     #        .Define("ratioCyl", "tofCyl0/tofTrue")\
     #
     # # canvas.cd(1)
-    # h = df.Histo2D(("h"," Cylinder 5mm;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 200, 0.999, 1.001), "nHitsCluster","ratioCyl")
+    # h = df.Histo2D(("h"," Cylinder 5mm;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 200, 0.999, 1.001), "nECALHits","ratioCyl")
     # # h.Draw("colz")
     #
     # h.FitSlicesY(0,0,-1,100)
@@ -88,36 +88,39 @@ def plot_photons():
     # canvas.Update()
     # input("wait")
 
-    canvas = ROOT.TCanvas()
+    canvas = ROOT.TCanvas("name", "name", 800, 800)
 
-    smearings = [0, 10, 30, 50, 100, 200, 300]
-    methods = ["Closest", "Fastest", "Frank", "Cyl"]
+    # smearings = [0, 10, 30, 50, 100, 200, 300]
+    smearings = [0, 10]
+    methods = ["Closest", "Fastest", "Frank", "Avg"]
     for s in smearings:
         for m in methods:
             # ratios
             df = df.Define("ratio{1}{0}".format(s, m), "tof{1}{0}/tofTrue".format(s, m))\
-                   .Define("ratioCalib{1}{0}".format(s, m), "calibrateTOF(tof{1}{0}, nHitsCluster, \"{1}\")/tofTrue".format(s, m))\
+                   .Define("ratioCalib{1}{0}".format(s, m), "calibrateTOF(tof{1}{0}, nECALHits, \"{1}\")/tofTrue".format(s, m))\
             # deltas
-            df = df.Define("dt{1}{0}".format(s, m), "tof{1}{0} - tofTrue".format(s, m))\
-                   .Define("dtCalib{1}{0}".format(s, m), "calibrateTOF(tof{1}{0}, nHitsCluster, \"{1}\") - tofTrue".format(s, m))\
+            df = df.Define("dt{1}{0}".format(s, m), "(tof{1}{0} - tofTrue)*1000".format(s, m))\
+                   .Define("dtCalib{1}{0}".format(s, m), "(calibrateTOF(tof{1}{0}, nECALHits, \"{1}\") - tofTrue)*1000".format(s, m))\
 
 
-    h_before = df.Histo2D(("h_before"," before calibration;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 200, 0.999, 1.001), "nHitsCluster","ratioFrank0")
-    h_before.FitSlicesY(0,0,-1,100)
-    h_before_1 = ROOT.gROOT.FindObject("h_before_1")
-    h_before_1.Draw()
-    h_after = df.Histo2D(("h_after"," After calibration;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 200, 0.999, 1.001), "nHitsCluster","ratioCalibFrank0")
-    h_after.FitSlicesY(0,0,-1,100)
-    h_after_1 = ROOT.gROOT.FindObject("h_after_1")
-    h_after_1.Draw("same")
+
+    # GAUS SLICE MEANS BEFORE/AFTER CALIBRATION
+    # h_before = df.Histo2D(("h_before"," before calibration;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 200, 0.999, 1.001), "nECALHits","ratioFrank0")
+    # h_before.FitSlicesY(0,0,-1,100)
+    # h_before_1 = ROOT.gROOT.FindObject("h_before_1")
+    # h_before_1.Draw()
+    # h_after = df.Histo2D(("h_after"," After calibration;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 200, 0.999, 1.001), "nECALHits","ratioCalibFrank0")
+    # h_after.FitSlicesY(0,0,-1,100)
+    # h_after_1 = ROOT.gROOT.FindObject("h_after_1")
+    # h_after_1.Draw("same")
 
 
 
     ################## 1D biases OF ALL METHODS CALIBRATED###############
-    # h_closest = df.Histo1D(("h_closest"," Closest hit; #Delta TOF, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtCalibClosest0")
-    # h_fastest = df.Histo1D(("h_fastest"," Fastest hit; #Delta TOF, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtCalibFastest0")
-    # h_frank = df.Filter("ratioFrank>0").Histo1D(("h_frank"," Frank; #Delta TOF, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtCalibFrank0")
-    # h_cyl = df.Filter("ratioCyl>0").Histo1D(("h_cyl"," 5 mm cyl; #Delta TOF, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtCalibCyl0")
+    # h_closest = df.Histo1D(("h_closest"," #tau_{closest}; #tau_{reco} - #tau_{true}, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtClosest10")
+    # h_fastest = df.Histo1D(("h_fastest"," #tau_{fastest}; #tau_{reco} - #tau_{true}, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtFastest10")
+    # h_frank = df.Histo1D(("h_frank"," #tau_{fit}; #tau_{reco} - #tau_{true}, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtFrank10")
+    # h_cyl = df.Histo1D(("h_cyl"," #tau_{avg}; #tau_{reco} - #tau_{true}, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtAvg10")
     # h_closest.SetLineColor(1)
     # h_fastest.SetLineColor(2)
     # h_frank.SetLineColor(4)
@@ -151,32 +154,30 @@ def plot_photons():
     #     histos[i].Draw("same")
 
     # BIAS BEFORE/AFTER CALLIBRATION
-    # h_before = df.Histo1D(("h_before","Before calibration; #Delta TOF, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtFrank0")
-    # h_after = df.Histo1D(("h_after","After calibration; #Delta TOF, [ns]; N_{PFO}", 400, -0.04, 0.04), "dtCalibFrank0")
-    # h_after.SetLineColor(2)
-    # h_before.SetLineWidth(3)
-    # h_after.SetLineWidth(3)
-    # h_before.Draw()
-    # h_after.Draw("sames")
+    h_before = df.Histo1D(("h_before","Before calibration; #tau_{fit} - #tau_{true}, [ns]; N_{PFOs}", 400, -40., 40.), "dtFrank0")
+    h_after = df.Histo1D(("h_after","After calibration; #tau_{fit} - #tau_{true}, [ns]; N_{PFOs}", 400, -40., 40.), "dtCalibFrank0")
+    h_after.SetLineColor(2)
+    h_before.Draw()
+    h_after.Draw("sames")
 
 
     # RATIO PROFILES
-    # h_closest = df.Histo2D(("h_closest"," Closest hit;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nHitsCluster","ratioClosest").ProfileX()
-    # h_fastest = df.Histo2D(("h_fastest"," Fastest hit;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nHitsCluster", "ratioFastest").ProfileX()
-    # h_frank = df.Filter("ratioFrank>0").Histo2D(("h_frank"," closest to track;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nHitsCluster", "ratioFrank").ProfileX()
-    # h_cyl = df.Filter("ratioCyl>0").Histo2D(("h_cyl"," 5 mm cyl;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nHitsCluster", "ratioCyl").ProfileX()
+    # h_closest = df.Histo2D(("h_closest"," Closest hit;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nECALHits","ratioClosest").ProfileX()
+    # h_fastest = df.Histo2D(("h_fastest"," Fastest hit;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nECALHits", "ratioFastest").ProfileX()
+    # h_frank = df.Filter("ratioFrank>0").Histo2D(("h_frank"," closest to track;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nECALHits", "ratioFrank").ProfileX()
+    # h_cyl = df.Filter("ratioCyl>0").Histo2D(("h_cyl"," 5 mm cyl;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nECALHits", "ratioCyl").ProfileX()
 
     # BIAS PROFILES
-    # h_closest = df.Histo2D(("h_closest"," Closest hit;n Hits in ECAL Cluster;#Delta TOF, [ns]", 100, 0, 100, 400, -0.04, 0.04), "nHitsCluster","dtClosest").ProfileX()
-    # h_fastest = df.Histo2D(("h_fastest"," Fastest hit;n Hits in ECAL Cluster;#Delta TOF, [ns]", 100, 0, 100, 400, -0.04, 0.04), "nHitsCluster", "dtFastest").ProfileX()
-    # h_frank = df.Histo2D(("h_frank"," closest to track;n Hits in ECAL Cluster;#Delta TOF, [ns]", 100, 0, 100, 400, -0.04, 0.04), "nHitsCluster", "dtFrank").ProfileX()
-    # h_cyl = df.Histo2D(("h_cyl"," 5 mm cyl;n Hits in ECAL Cluster;#Delta TOF, [ns]", 100, 0, 100, 400, -0.04, 0.04), "nHitsCluster", "dtCyl").ProfileX()
+    # h_closest = df.Histo2D(("h_closest"," Closest hit;n Hits in ECAL Cluster;#Delta TOF, [ns]", 100, 0, 100, 400, -0.04, 0.04), "nECALHits","dtClosest").ProfileX()
+    # h_fastest = df.Histo2D(("h_fastest"," Fastest hit;n Hits in ECAL Cluster;#Delta TOF, [ns]", 100, 0, 100, 400, -0.04, 0.04), "nECALHits", "dtFastest").ProfileX()
+    # h_frank = df.Histo2D(("h_frank"," closest to track;n Hits in ECAL Cluster;#Delta TOF, [ns]", 100, 0, 100, 400, -0.04, 0.04), "nECALHits", "dtFrank").ProfileX()
+    # h_cyl = df.Histo2D(("h_cyl"," 5 mm cyl;n Hits in ECAL Cluster;#Delta TOF, [ns]", 100, 0, 100, 400, -0.04, 0.04), "nECALHits", "dtCyl").ProfileX()
 
     # RATIO CALIBRATED
-    # h_closest = df.Histo2D(("h_closest"," Closest hit;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nHitsCluster","ratioCalibClosest")
-    # h_fastest = df.Histo2D(("h_fastest"," Fastest hit;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nHitsCluster", "ratioCalibFastest")
-    # h_frank = df.Filter("ratioFrank>0").Histo2D(("h_frank"," closest to track;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nHitsCluster", "ratioCalibFrank")
-    # h_cyl = df.Filter("ratioCyl>0").Histo2D(("h_cyl"," 5 mm cyl;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nHitsCluster", "ratioCalibCyl")
+    # h_closest = df.Histo2D(("h_closest"," Closest hit;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nECALHits","ratioCalibClosest")
+    # h_fastest = df.Histo2D(("h_fastest"," Fastest hit;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nECALHits", "ratioCalibFastest")
+    # h_frank = df.Filter("ratioFrank>0").Histo2D(("h_frank"," closest to track;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nECALHits", "ratioCalibFrank")
+    # h_cyl = df.Filter("ratioCyl>0").Histo2D(("h_cyl"," 5 mm cyl;n Hits in ECAL Cluster;TOF_{reco}/TOF_{true}", 500, 0, 500, 100000, 0., 2.), "nECALHits", "ratioCalibCyl")
     #
     #
 
@@ -203,5 +204,5 @@ def plot_photons():
 
 
 
-# plot_photons()
+plot_photons()
 # plot_pions()

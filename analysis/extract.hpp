@@ -18,7 +18,7 @@ std::normal_distribution <double> gaus100(0., 0.1);
 std::normal_distribution <double> gaus200(0., 0.2);
 std::normal_distribution <double> gaus300(0., 0.3);
 
-TCanvas* canvas = new TCanvas("canvas", "title", 1920, 1600);
+TCanvas* canvas = new TCanvas("canvas", "title", 800, 800);
 int pic = 0;
 XYZVector getECALPlane(const double& phiCluster){
     int nSides = 8;
@@ -273,7 +273,39 @@ int fit_analysis(const RVec <double>& tofHit, const RVec<double>& dToImpact, con
     return true;
 }
 
+int plot_fit(const RVec <double>& tofHit, const RVec<double>& dToImpact){
+    cout<< "Debug1"<<endl;
+    int nHits = tofHit.size();
+    cout<< "N hits"<<nHits<<endl;
+    if(nHits <= 1) return 0;
+    vector<double> x_err;
+    vector<double> y_err;
+    for(int i=0; i < nHits; ++i){
+        x_err.push_back(0.);
+        y_err.push_back(0.1);
+    }
 
+    TGraphErrors gr(nHits, &dToImpact[0], &tofHit[0], &x_err[0], &y_err[0]);
+    TF1* fit = new TF1("fit", "pol1");
+
+    gr.Fit(fit);
+    fit = gr.GetFunction("fit");
+
+    gr.SetMarkerStyle(20);
+    gr.SetMarkerColor(1);
+    gr.SetLineColor(1);
+    gr.SetLineWidth(1);
+    fit->SetLineColor(1);
+    fit->SetLineWidth(3);
+    fit->SetNpx(1000);
+
+    gr.Draw("AP");
+    fit->Draw("same");
+    canvas->BuildLegend(0.1, 0.7, 0.3, 0.9);
+    canvas->Update();
+    canvas->Print(Form("./fit_analysis_pics/%d.root", pic++));
+    return true;
+}
 
 /////////////////////////EXTRA//////////////////////////
 /////////////////////////EXTRA//////////////////////////

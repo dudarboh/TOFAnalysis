@@ -3,38 +3,54 @@ import numpy as np
 # ROOT.EnableImplicitMT(4)
 
 methods = [
-"pTrackAtIP_lengthTrackIP_FrankAvg_100.0",
-"pTrackAtIP_lengthTrackIP_Frank_100.0"
+"pTrackAtIP_lengthTrackIP_FrankAvg_0.0",
+# "pTrackAtIP_lengthTrackIP_FrankAvg_10.0",
+# "pTrackAtIP_lengthTrackIP_FrankAvg_50.0",
+# "pTrackAtIP_lengthTrackIP_FrankAvg_100.0",
 ]
 
+# methods = [
+# "pTrackAtCalo_lengthTrackCalo_Frank_0.0",
+# "pTrackAtCalo_lengthTrackCalo_Frank_10.0",
+# "pTrackAtCalo_lengthTrackCalo_Frank_50.0",
+# "pTrackAtCalo_lengthTrackCalo_Frank_100.0",
+# ]
+
+
 def beta_vs_p(tree_name):
-    canvas = ROOT.TCanvas("beta_vs_p_{}".format(tree_name))
+    canvas = ROOT.TCanvas("img_beta_vs_p_{}".format(tree_name), "beta_vs_p_{}".format(tree_name) ,800, 800)
     df = ROOT.RDataFrame(tree_name, "./final_roots/" + tree_name + ".root")
     # gr_bg = df.Filter("abs(PDG) != 2212 && abs(PDG) != 321 && abs(PDG) != 211").Graph("mom", "beta")
+    # gr_all = df.Graph("mom", "beta")
     gr_pion = df.Filter("abs(PDG) == 211").Graph("mom", "beta")
     gr_kaon = df.Filter("abs(PDG) == 321").Graph("mom", "beta")
     gr_proton = df.Filter("abs(PDG) == 2212").Graph("mom", "beta")
 
 
+    # gr_all.Draw("AP")
+    # gr_all.SetMarkerColor(1)
+    # gr_all.SetMarkerStyle(1)
+    # gr_all.SetTitle("Background;momentum, [GeV];#beta")
+    # gr_all.SetLineWidth(1)
+    # gr_all.GetXaxis().SetRangeUser(1., 10.)
+    # gr_all.GetYaxis().SetRangeUser(0.8, 1.01)
+
     gr_pion.Draw("AP")
     gr_pion.SetMarkerColor(2)
-    gr_pion.SetTitle("Pions;p, [GeV];#beta")
-    gr_pion.SetLineWidth(1)
+    gr_pion.SetMarkerStyle(1)
+    gr_pion.SetTitle("Pions;")
     gr_pion.SetLineColor(2)
-    gr_pion.GetXaxis().SetRangeUser(1., 10.)
-    gr_pion.GetYaxis().SetRangeUser(0.7, 1.1)
-
 
     gr_kaon.Draw("Psame")
     gr_kaon.SetMarkerColor(3)
+    gr_kaon.SetMarkerStyle(1)
     gr_kaon.SetTitle("Kaons")
-    gr_kaon.SetLineWidth(1)
     gr_kaon.SetLineColor(3)
 
     gr_proton.Draw("Psame")
     gr_proton.SetMarkerColor(4)
+    gr_proton.SetMarkerStyle(1)
     gr_proton.SetTitle("Protons")
-    gr_proton.SetLineWidth(1)
     gr_proton.SetLineColor(4)
 
     # gr_bg.Draw("Psame")
@@ -43,7 +59,7 @@ def beta_vs_p(tree_name):
     # gr_bg.SetLineWidth(1)
     # gr_bg.SetLineColor(1)
     canvas.BuildLegend(0.5, 0.2, 0.8, 0.5)
-    gr_pion.SetTitle(tree_name)
+    gr_pion.SetTitle("")
     canvas.Update()
     input("wait")
 
@@ -149,7 +165,7 @@ mg = ROOT.TMultiGraph()
 mg.SetTitle("#pi^{#pm}/K^{#pm} separation power for different TOF methods; p, [GeV]; Sep. Power, [#sigma]")
 # mg.SetTitle("K^{#pm}/p^{#pm} separation power for different TOF methods; p, [GeV]; Sep. Power, [#sigma]")
 for i, gr in enumerate(graphs_pik):
-    gr.SetTitle("_".join(methods[i]))
+    gr.SetTitle(methods[i])
     gr.SetLineColor(i+1)
     gr.SetMarkerColor(i+1)
     gr.SetLineWidth(1)

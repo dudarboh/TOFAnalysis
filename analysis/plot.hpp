@@ -19,8 +19,8 @@ double calibrateTOF(double tof, int nHits,string method){
     }
     else if (method == "Frank"){
         TF1 calib = TF1("frank", "pol2");
-        if(nHits < 45) calib.SetParameters(9.99898e-01, -5.00921e-06, 6.92759e-08);
-        else calib.SetParameters(9.99753e-01, 1.45337e-06, -2.28934e-09);
+        if(nHits < 45) calib.SetParameters(9.99902e-01, -5.71171e-06, 8.20673e-08);
+        else calib.SetParameters(9.99742e-01, 1.76602e-06, -4.42068e-09);
         return tof/calib.Eval(nHits);
     }
     else if (method == "Cyl"){

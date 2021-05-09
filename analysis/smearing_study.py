@@ -31,27 +31,30 @@ def len_res_bias(m_true=139.5701835353535353535, l_track=2000., momentum=1000., 
 def smear_bias_vs_mom():
     canvas = ROOT.TCanvas()
     # for time resolution plots
-    res = [0.001, 0.01, 0.03, 0.05, 0.1, 0.2, 0.3]  # ns
+    res = [0.001, 0.005, 0.01, 0.02, 0.03, 0.04, 0.05]  # ns
     # for track length resolution plots
-    res = [0.01, 0.1, 1., 3., 5.]  # mm
+    # res = [0.01, 0.1, 1., 3., 5.]  # mm
 
     graphs = [ROOT.TGraph() for i in range(len(res))]
-    mom = np.linspace(0.1, 10., 100)*1000
+    mom = np.linspace(0.8, 5., 100)*1000
     for i, s in enumerate(res):
         for j, m in enumerate(mom):
             print("mom", m, "smear", s)
-            # bias = time_res_bias(l_track=2500., momentum=m, resolution=s)
-            bias = len_res_bias(l_track=2500., momentum=m, resolution=s)
+            bias = time_res_bias(l_track=2500., momentum=m, resolution=s)
+            # bias = len_res_bias(l_track=2500., momentum=m, resolution=s)
             graphs[i].SetPoint(j, m, bias)
 
+    mg = ROOT.TMultiGraph()
     for i, g in enumerate(graphs):
+        mg.Add(g)
         g.SetLineColor(i+1)
         g.SetLineWidth(2)
-        # g.SetTitle("{0} ps; momentum, [MeV]; #Delta m, [MeV]".format(int(res[i]*1000)))
-        g.SetTitle("{0} um; momentum, [MeV]; #Delta m, [MeV]".format(int(res[i]*1000)))
-        g.Draw("AL" if i == 0 else "same")
+        g.SetTitle("{0} ps; momentum, [MeV]; #Delta m, [MeV]".format(int(res[i]*1000)))
+        # g.SetTitle("{0} um; momentum, [MeV]; #Delta m, [MeV]".format(int(res[i]*1000)))
 
+    mg.Draw("AL")
     canvas.BuildLegend()
+
     canvas.Update()
     input("wait")
 
