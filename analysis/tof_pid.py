@@ -4,6 +4,7 @@ import numpy as np
 
 methods = [
 "pTrackAtIP_lengthTrackIP_FrankAvg_0.0",
+"pTrackAtCalo_lengthTrackCalo_FrankAvg_0.0",
 # "pTrackAtIP_lengthTrackIP_FrankAvg_10.0",
 # "pTrackAtIP_lengthTrackIP_FrankAvg_50.0",
 # "pTrackAtIP_lengthTrackIP_FrankAvg_100.0",

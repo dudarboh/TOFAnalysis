@@ -17,7 +17,7 @@
 
 	<execute>
         <processor name="InitDD4hep" />
-        <processor name="MyGenericViewer"/>
+        <!-- <processor name="MyGenericViewer"/> -->
         <processor name="MyTOFAnalysis"/>
 	</execute>
 

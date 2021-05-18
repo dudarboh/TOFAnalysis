@@ -15,6 +15,8 @@
 #include <string>
 #include <vector>
 #include "Math/Vector3D.h"
+#include "UTIL/ILDConf.h"
+
 using marlin::Processor;
 using namespace std::chrono;
 using std::vector, std::string, std::unique_ptr;
@@ -37,7 +39,7 @@ private:
     string _outputFileName;
 
     // SET hits
-    int _nSETHits;
+    int _nSETHits, _nTPCHits;
     vector <XYZVector> _xyzSETHit;
     vector <double> _tSETHit;
     // ECAL hits
@@ -57,6 +59,8 @@ private:
     XYZVector _pTrackAtIP;
     XYZVector _pTrackAtCalo;
     XYZVector _xyzTrackAtCalo;
+    double _d0TrackAtIP;
+    double _z0TrackAtIP;
     double _d0TrackAtCalo;
     double _z0TrackAtCalo;
     // Cluster
@@ -70,6 +74,9 @@ private:
 
     double _rTPCOuter;
     double _bField[3];
+    // lcio//DD4HEP specifics
+    const int _TPCID = ILDDetID::TPC;
+    const int _TPCindex = _TPCID*2-2;
 };
 
 

@@ -13,10 +13,10 @@ def calculate_method(momentum="pTrackAtCalo", length="lengthTrackCalo", tof="Clo
     Return root file with momentum, beta, PDG for every PFO in the barrel.
     '''
     df = ROOT.RDataFrame(ch)
-    df = df.Filter("nECALHits > 0 && abs(xyzCluster.Z()) < 2200.")
+    df = df.Filter("nECALHits > 0")
 
     df = df.Define("mom", "{}.R()".format(momentum))\
-    .Filter("mom>2.5").Define("pt", "{}.Rho()".format(momentum))
+           .Define("pt", "{}.Rho()".format(momentum))
     df = df.Define("tofNoSmearingHit", "tofHit(tECALHit, 0.0)").Define("tofHit", "tofHit(tECALHit, {})".format(smearing))
 
     if tof == "Closest":
@@ -29,7 +29,7 @@ def calculate_method(momentum="pTrackAtCalo", length="lengthTrackCalo", tof="Clo
         df = df.Define("dToImpact", "dToImpact(xyzECALHit, xyzTrackAtCalo)")\
                .Define("dToLine", "dToLine(xyzECALHit, xyzTrackAtCalo, pTrackAtCalo)")\
                .Define("sel_frank", "selectHits(dToLine, layerECALHit, true, 10, 9999.)")\
-               .Define("tof", "fitFunc(tofNoSmearingHit[sel_frank], dToImpact[sel_frank], 0, 0)")
+               .Define("tof", "fitFunc(tofHit[sel_frank], dToImpact[sel_frank], 0, 0)")
                # .Define("slope0", "fitFunc(tofNoSmearingHit[sel_frank], dToImpact[sel_frank], 1, 0)")\
                # .Define("tof100", "fitFunc(tofHit[sel_frank], dToImpact[sel_frank], 0, 0)")\
                # .Define("slope100", "fitFunc(tofHit[sel_frank], dToImpact[sel_frank], 1, 0)")\

@@ -45,11 +45,11 @@ TOFAnalysis::TOFAnalysis() : Processor("TOFAnalysis"){
                                _outputFileName,
                                string("TOFAnalysis_RENAME.root"));
 
-    registerOutputCollection( LCIO::RECONSTRUCTEDPARTICLE,
-                             "OutputCollection",
-                             "Collection of bad PFOs particles",
-                             _outCol,
-                             std::string("BadPFOs"));
+    // registerOutputCollection( LCIO::RECONSTRUCTEDPARTICLE,
+    //                          "OutputCollection",
+    //                          "Collection of bad PFOs particles",
+    //                          _outCol,
+    //                          std::string("BadPFOs"));
 
 }
 
@@ -73,6 +73,7 @@ void TOFAnalysis::init(){
     _tree.reset(new TTree("TOFAnalysis", "ROOT file for TOF analysis"));
 
     //SET
+    _tree->Branch("nTPCHits", &_nTPCHits);
     _tree->Branch("nSETHits", &_nSETHits);
     _tree->Branch("xyzSETHit", &_xyzSETHit);
     _tree->Branch("tSETHit", &_tSETHit);
@@ -93,6 +94,8 @@ void TOFAnalysis::init(){
     _tree->Branch("pTrackAtIP", &_pTrackAtIP);
     _tree->Branch("pTrackAtCalo", &_pTrackAtCalo);
     _tree->Branch("xyzTrackAtCalo", &_xyzTrackAtCalo);
+    _tree->Branch("d0TrackAtIP", &_d0TrackAtIP);
+    _tree->Branch("z0TrackAtIP", &_z0TrackAtIP);
     _tree->Branch("d0TrackAtCalo", &_d0TrackAtCalo);
     _tree->Branch("z0TrackAtCalo", &_z0TrackAtCalo);
     //Cluster
@@ -116,13 +119,13 @@ void TOFAnalysis::processEvent(LCEvent* evt){
     LCCollection* colRelation = evt->getCollection("RecoMCTruthLink");
     LCRelationNavigator relation(colRelation);
 
-    LCCollectionVec* outCol = new LCCollectionVec( LCIO::RECONSTRUCTEDPARTICLE );
+    // LCCollectionVec* outCol = new LCCollectionVec( LCIO::RECONSTRUCTEDPARTICLE );
 
     for (int i=0; i<colPFO->getNumberOfElements(); ++i){
         ReconstructedParticle* pfo = dynamic_cast <ReconstructedParticle*> ( colPFO->getElementAt(i) );
         int nClusters = pfo->getClusters().size();
         int nTracks = pfo->getTracks().size();
-
+        double pfoMom = XYZVector( pfo->getMomentum()[0], pfo->getMomentum()[1], pfo->getMomentum()[2] ).R();
         // Only simple cases of PFOs
         if( nClusters != 1 || nTracks > 1) continue;
 
@@ -159,6 +162,7 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         _nECALHits = _xyzECALHit.size();
         // Track
         if (nTracks == 0){
+            _nTPCHits = 0;
             _chi2Track = 0.;
             _ndfTrack = 0;
             _dEdXTrack = 0.;
@@ -168,22 +172,25 @@ void TOFAnalysis::processEvent(LCEvent* evt){
             _pTrackAtIP = XYZVector();
             _pTrackAtCalo = XYZVector();
             _xyzTrackAtCalo = XYZVector();
+            _d0TrackAtIP = 0.;
+            _z0TrackAtIP = 0.;
             _d0TrackAtCalo = 0.;
             _z0TrackAtCalo = 0.;
         }
         else{
             const Track* track = pfo->getTracks()[0];
-
+            _nTPCHits = track->getSubdetectorHitNumbers()[_TPCindex];
             _chi2Track = track->getChi2();
             _ndfTrack = track->getNdf();
             _dEdXTrack = track->getdEdx();
-
             const TrackState* tsIP = track->getTrackState(TrackState::AtIP);
             double phiIP = tsIP->getPhi();
             double omegaIP = tsIP->getOmega();
             double tanLIP = tsIP->getTanLambda();
-            double d0IP = tsIP->getD0();
-            double z0IP = tsIP->getZ0();
+            _d0TrackAtIP = tsIP->getD0();
+            _z0TrackAtIP = tsIP->getZ0();
+            cout<<"diff omega: "<<omegaIP - track->getOmega()<<endl;
+            cout<<"diff lambda: "<<tanLIP - track->getTanLambda()<<endl;
             const TrackState* tsCalo = track->getTrackState(TrackState::AtCalorimeter);
             double phiCalo = tsCalo->getPhi();
             double omegaCalo = tsCalo->getOmega();
@@ -207,9 +214,8 @@ void TOFAnalysis::processEvent(LCEvent* evt){
             }
 
             HelixClass helixIP;
-            helixIP.Initialize_Canonical(phiIP, d0IP, z0IP, omegaIP, tanLIP, _bField[2]/dd4hep::tesla);
+            helixIP.Initialize_Canonical(phiIP, _d0TrackAtIP, _z0TrackAtIP, omegaIP, tanLIP, _bField[2]/dd4hep::tesla);
             _pTrackAtIP = XYZVector( helixIP.getMomentum()[0], helixIP.getMomentum()[1], helixIP.getMomentum()[2] );
-
             HelixClass helixCalo;
             helixCalo.Initialize_Canonical(phiCalo, _d0TrackAtCalo, _z0TrackAtCalo, omegaCalo, tanLCalo, _bField[2]/dd4hep::tesla);
             _pTrackAtCalo = XYZVector( helixCalo.getMomentum()[0], helixCalo.getMomentum()[1], helixCalo.getMomentum()[2] );
