@@ -24,7 +24,7 @@ cmake_policy(VERSION 3.12)
 project(TOFAnalysis VERSION 1.0)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
-add_library(${PROJECT_NAME} SHARED ${PROJECT_SOURCE_DIR}/src/TOFAnalysis.cpp)
+add_library(${PROJECT_NAME} SHARED ${PROJECT_SOURCE_DIR}/src/TofAnaUtils.cpp ${PROJECT_SOURCE_DIR}/src/TofAnalysis.cpp)
 
 ### DEPENDENCIES ###
 include($ENV{ILCSOFT}/ILCSoft.cmake)
@@ -38,6 +38,6 @@ FOREACH(pkg Marlin MarlinUtil)
     target_link_libraries(${PROJECT_NAME} ${${pkg}_LIBRARIES})
 ENDFOREACH()
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wno-effc++")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -ansi -pedantic -Wno-effc++")
 message(STATUS "${Yellow}CMAKE_CXX_FLAGS:  ${CMAKE_CXX_FLAGS} ${Reset}")
 install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/lib)
