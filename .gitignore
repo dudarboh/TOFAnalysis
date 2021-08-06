@@ -4,4 +4,5 @@ doc/*
 !doc/Doxyfile
 *.png
 analysis/images
+analysis/obsolete
 *.root

@@ -1,4 +1,4 @@
-executable = /afs/desy.de/user/d/dudarboh/TOFAnalysis/job/job.sh
+executable = /afs/desy.de/user/d/dudarboh/SETAnalysis/job/job.sh
 arguments = $(file) $(ProcId)
 
 initialdir = /nfs/dust/ilc/user/dudarboh/job_files/jobs
@@ -8,4 +8,4 @@ log = ../log/$(ProcId).log
 output = ../out/$(ProcId).out
 error = ../err/$(ProcId).err
 
-queue file from /afs/desy.de/user/d/dudarboh/TOFAnalysis/job/2f_Z_hadronic_3k.txt
+queue file from /afs/desy.de/user/d/dudarboh/SETAnalysis/job/2f_Z_hadronic_500.txt

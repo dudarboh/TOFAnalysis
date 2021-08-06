@@ -1,11 +1,5 @@
 <marlin>
 
-
-    <constants>
-        <constant name="DetectorName" value="ILD_l5_o1_v02" />
-	</constants>
-
-
     <global>
 		<parameter name="LCIOInputFiles">
             /pnfs/desy.de/ilc/prod/ilc/mc-opt-3/ild/rec/500-TDR_ws/2f_Z_hadronic/ILD_l5_o1_v02/v02-00-01/00010410/000/rv02-00-01.sv02-00-01.mILD_l5_o1_v02.E500-TDR_ws.I250114.P2f_z_h.eL.pR.n001_001.d_rec_00010410_131.slcio
@@ -17,43 +11,19 @@
 
 	<execute>
         <processor name="InitDD4hep" />
-        <!-- <processor name="MyGenericViewer"/> -->
-        <processor name="MyTOFAnalysis"/>
+        <processor name="MySETAnalysis"/>
 	</execute>
 
 
     <processor name="InitDD4hep" type="InitializeDD4hep">
         <!--InitializeDD4hep reads a compact xml file and initializes the DD4hep::LCDD object-->
         <parameter name="DD4hepXMLFile" type="string">
-            /cvmfs/ilc.desy.de/sw/x86_64_gcc82_centos7/v02-02/lcgeo/v00-16-06/ILD/compact/${DetectorName}/${DetectorName}.xml
+            /cvmfs/ilc.desy.de/sw/x86_64_gcc82_centos7/v02-02/lcgeo/v00-16-06/ILD/compact/ILD_l5_o1_v02/ILD_l5_o1_v02.xml
         </parameter>
     </processor>
 
 
-    <processor name="MyTOFAnalysis" type="TofAnalysis">
-        <parameter name="outputFile" type="string" value="TofAnalysis_RENAME.root"/>
-        <parameter name="writeTpcHits" type="bool" value="true" />
-        <parameter name="writeEcalHits" type="bool" value="true" />
-        <parameter name="writeSetHits" type="bool" value="true" />
-    </processor>
-
-    <processor name="MyGenericViewer" type="GenericViewer">
-        <!--Sim Calo Hit Collection Names-->
-        <parameter name="SimCaloHitCollections" type="StringVec" lcioInType="SimCalorimeterHit">
-            BeamCalCollection EcalBarrelCollection EcalBarrelPreShowerCollection EcalEndcapCollection
-            EcalEndcapPreShowerCollection EcalEndcapRingCollection EcalEndcapRingPreShowerCollection
-            HcalBarrelRegCollection HcalEndCapRingsCollection HcalEndCapsCollection
-            LHcalCollectionLumiCalCollection MuonEndCapCollection
-        </parameter>
-        <!--Sim Tracker Hit Collection Names-->
-        <parameter name="SimTrackerHitCollections" type="StringVec" lcioInType="SimTrackerHit">
-            ETDCollection FTDCollection SETCollection SITCollection TPCCollection
-            TPCSpacePointCollection VXDCollection
-        </parameter>
-        <!--Layer for Sim Calo Hits-->
-        <parameter name="LayerSimCaloHit" type="int" value="5"/>
-        <!--Layer for Sim Tracker Hits-->
-        <parameter name="LayerSimTrackerHit" type="int" value="6"/>
+    <processor name="MySETAnalysis" type="SETAnalysis">
     </processor>
 
 
