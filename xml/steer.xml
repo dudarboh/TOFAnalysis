@@ -30,7 +30,12 @@
     </processor>
 
 
-    <processor name="MyTOFAnalysis" type="TOFAnalysis"></processor>
+    <processor name="MyTOFAnalysis" type="TofAnalysis">
+        <parameter name="outputFile" type="string" value="TofAnalysis_RENAME.root"/>
+        <parameter name="writeTpcHits" type="bool" value="true" />
+        <parameter name="writeEcalHits" type="bool" value="true" />
+        <parameter name="writeSetHits" type="bool" value="true" />
+    </processor>
 
     <processor name="MyGenericViewer" type="GenericViewer">
         <!--Sim Calo Hit Collection Names-->

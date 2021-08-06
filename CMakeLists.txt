@@ -24,7 +24,7 @@ cmake_policy(VERSION 3.12)
 project(TOFAnalysis VERSION 1.0)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
-add_library(${PROJECT_NAME} SHARED ${PROJECT_SOURCE_DIR}/src/TofAnaUtils.cpp ${PROJECT_SOURCE_DIR}/src/TofAnalysis.cpp)
+add_library(${PROJECT_NAME} SHARED ${PROJECT_SOURCE_DIR}/src/TofAnalysis.cpp ${PROJECT_SOURCE_DIR}/src/ContDict.cxx)
 
 ### DEPENDENCIES ###
 include($ENV{ILCSOFT}/ILCSoft.cmake)

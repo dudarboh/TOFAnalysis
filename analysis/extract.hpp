@@ -18,7 +18,7 @@ std::normal_distribution <double> gaus100(0., 0.1);
 std::normal_distribution <double> gaus200(0., 0.2);
 std::normal_distribution <double> gaus300(0., 0.3);
 
-TCanvas* canvas = new TCanvas("canvas", "title", 800, 800);
+// TCanvas* canvas = new TCanvas("canvas", "title", 800, 800);
 int pic = 0;
 XYZVector getECALPlane(const double& phiCluster){
     int nSides = 8;

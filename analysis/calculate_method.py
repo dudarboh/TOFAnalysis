@@ -1,12 +1,39 @@
 import ROOT
 import sys
+import math
 ROOT.gInterpreter.Declare('#include "extract.hpp"')
 
 ch = ROOT.TChain("TOFAnalysis")
 
 # # 2f_Z_hadronic data
-ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/result*.root")
+# ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/old/result*.root")
+ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/2f_Z_hadronic/old/result*.root")
 
+ROOT.gInterpreter.Declare('''
+
+RVec <double> funcc(RVec<XYZVector> hits){
+    RVec<double> pos_z;
+    for(auto& hit:hits) pos_z.push_back(hit.phi());
+    return pos_z;
+}
+
+''')
+
+def test_SET():
+    canvas = ROOT.TCanvas()
+    # df = ROOT.RDataFrame("TOFAnalysis", "../build/TofAnalysis_RENAME.root").Filter("nSETHits > 0 && nECALHits > 0").Range(1000000)
+    df = ROOT.RDataFrame(ch).Filter("nSETHits > 0 && nECALHits > 0").Range(1000000)
+    # df= df.Define("pos_z", "funcc(xyzSETHit)")
+    # h1 = df.Histo1D(("h1", "h_set", 2000, 0, 20), "tSETHit")
+
+    h2 = df.Define("dToImpact", "dToImpact(xyzECALHit, xyzTrackAtCalo)")\
+           .Define("tof", "tofClosest(tECALHit, dToImpact)").Histo2D(("h2", "h_closest", 2000, 0, 20, 2000, 0, 20), "tSETHit", "tof")
+    # h = df.Histo1D(("h", "h", 5000, -5, 5), "pos_z")
+    h2.Draw()
+    # h2.Draw()
+    # h2.SetLineColor(2)
+    canvas.Update()
+    input("wait")
 
 def calculate_method(momentum="pTrackAtCalo", length="lengthTrackCalo", tof="Closest", smearing="0."):
     '''
@@ -73,5 +100,4 @@ def calculate_method(momentum="pTrackAtCalo", length="lengthTrackCalo", tof="Clo
 #            ["pTrackAtCalo", "lengthTrackCalo", "Frank", "10.0"], ["pTrackAtCalo", "lengthTrackCalo", "Frank", "50.0"], ["pTrackAtCalo", "lengthTrackCalo", "Frank", "100.0"],]
 
 
-if __name__ == "__main__":
-    calculate_method(*sys.argv[1:])
+test_SET()

@@ -4,13 +4,16 @@
 #include <vector>
 #include <algorithm>
 
+#include "EVENT/LCCollection.h"
 #include "EVENT/Track.h"
 #include "EVENT/TrackState.h"
 #include "EVENT/TrackerHit.h"
 #include "EVENT/CalorimeterHit.h"
+#include "EVENT/MCParticle.h"
 #include "HelixClass.h"
 #include "marlinutil/CalorimeterHitType.h"
 
+#include "DD4hep/Detector.h"
 #include "DD4hep/DetectorSelector.h"
 #include "DD4hep/DD4hepUnits.h"
 #include "DDRec/DetectorData.h"
@@ -23,7 +26,16 @@
 #include "CLHEP/Random/Randomize.h"
 #include "CLHEP/Units/PhysicalConstants.h"
 
-#include <marlinutil/GeometryUtil.h>
+#include <marlin/Global.h>
+#include <marlin/ProcessorEventSeeder.h>
+#include "marlinutil/GeometryUtil.h"
+#include "marlinutil/CalorimeterHitType.h"
+#include "marlinutil/LCRelationNavigator.h"
+
+
+
+
+
 
 //////////////////////////////////////
 // #include "EVENT/CalorimeterHit.h"
@@ -141,11 +153,64 @@ double calculateTrackLengthIntegral(ReconstructedParticle* pfo){
 }
 
 
+double calculateTrackLengthSET(ReconstructedParticle* pfo, int location){
+    if ( pfo->getTracks().size() == 0 ) return 0.;
 
-void findShowerStart(ReconstructedParticle* pfo){
-    std::cout<<"okok"<<std::endl;
-    // auto findIter = integrations.find( _integration_method ) ;
+    const Track* track = pfo->getTracks()[0];
+    const TrackState* tsIp = track->getTrackState(TrackState::AtIP);
+    const TrackState* tsLast = track->getTrackState(TrackState::AtFirstHit);
 
+    double phiIp = tsIp->getPhi();
+    double phiLast = tsLast->getPhi();
+
+    double omega, tanL;
+    if (location == TrackState::AtIP){
+        omega = tsIp->getOmega();
+        tanL = tsIp->getTanLambda();
+    }
+    else if (location  == TrackState::AtFirstHit){
+        omega = tsLast->getOmega();
+        tanL = tsLast->getTanLambda();
+    }
+    else return 0.;
+
+    return std::abs( (phiIp - phiLast)/omega )*std::sqrt(1. + tanL*tanL);
+}
+
+
+double calculateTrackLengthIntegralSET(ReconstructedParticle* pfo){
+    if ( pfo->getTracks().size() == 0 ) return 0.;
+
+    const Track* track = pfo->getTracks()[0];
+    const TrackState* tsIP = track->getTrackState(TrackState::AtIP);
+    const TrackState* tsFirst = track->getTrackState(TrackState::AtFirstHit);
+
+    double phiIP = tsIP->getPhi();
+    double phiFirst = tsFirst->getPhi();
+
+    double omegaIP = tsIP->getOmega();
+    double tanLIP = tsIP->getTanLambda();
+
+
+    double tr_len = 0;
+    tr_len += std::abs( (phiIP - phiFirst)/omegaIP )*std::sqrt(1. + tanLIP*tanLIP);
+
+    std::vector <TrackerHit*> trackHits = track->getTrackerHits();
+
+    auto sortbyr = [](const TrackerHit* a, const TrackerHit* b){
+        Vector3D posA( a->getPosition() );
+        Vector3D posB( b->getPosition() );
+        return posA.r() < posB.r();
+    };
+
+    std::sort(trackHits.begin(), trackHits.end(), sortbyr);
+
+    for (size_t j=1; j < trackHits.size(); ++j){
+        Vector3D pos1( trackHits[j-1]->getPosition() );
+        Vector3D pos2( trackHits[j]->getPosition() );
+        tr_len += (pos2-pos1).r();
+    }
+    return tr_len;
 }
 
 
@@ -307,19 +372,34 @@ double TofFrankAvg::calculate( ReconstructedParticle* pfo ){
     return tof;
 }
 
-double TofSet::calculate( ReconstructedParticle* pfo, double rTpcOuter ){
+double TofSet::calculate( ReconstructedParticle* pfo ){
     if (pfo->getTracks().size() == 0){
         return 0.;
     }
+
+    const Detector& detector = Detector::getInstance();
+    const DetElement tpcDet = detector.detector("TPC");
+    const FixedPadSizeTPCData* tpc = tpcDet.extension <FixedPadSizeTPCData>();
+    double rOuter = tpc->rMaxReadout/dd4hep::mm;
+
     const Track* track = pfo->getTracks()[0];
     double tof = std::numeric_limits<double>::max();
     for ( const auto& hit : track->getTrackerHits() ){
         Vector3D pos( hit->getPosition() );
-        bool isSETHit = pos.rho() > rTpcOuter;
+        bool isSETHit = pos.rho() > rOuter;
 
         if (isSETHit){
             if (hit->getTime() < tof) tof = hit->getTime();
         }
     }
     return tof;
+}
+
+
+int findShowerStart(ReconstructedParticle* pfo){
+    const Cluster* cluster = pfo->getClusters()[0];
+
+    std::cout<<"Maybe one day . . ."<<std::endl;
+    // auto findIter = integrations.find( _integration_method ) ;
+    return 0.;
 }
