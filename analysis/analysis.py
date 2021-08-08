@@ -15,7 +15,7 @@ canvas = ROOT.TCanvas()
 
 ch = ROOT.TChain("SETAnalysis")
 
-ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/SET/final1.root")
+ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/SET/250gev_prod.root")
 
 df = ROOT.RDataFrame(ch)
 df1 = df.Filter("ts_last_mom.rho() > 5.")\

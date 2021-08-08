@@ -12,6 +12,7 @@
 
 #include "EVENT/MCParticle.h"
 #include "EVENT/ReconstructedParticle.h"
+#include "EVENT/SimCalorimeterHit.h"
 #include "UTIL/LCRelationNavigator.h"
 
 using marlin::Processor;
@@ -30,11 +31,14 @@ class SETAnalysis : public Processor {
         pair<double, double> getTpcR();
         vector<TrackerHit*> getSetHits(Track* track, double tpcROuter);
         double getTrackLength(Track* track, int from=TrackState::AtIP, int to=TrackState::AtCalorimeter);
-        double getTofClosest( Cluster* cluster, XYZVector posTrackAtCalo, double smearing=0. );
-        double getTofFastest( Cluster* cluster, XYZVector posTrackAtCalo, double smearing=0. );
+
+        CalorimeterHit* getFastestHit( Cluster* cluster);
+        CalorimeterHit* getClosestHit( Cluster* cluster, XYZVector posTrackAtCalo);
         double getTofFrankFit( Cluster* cluster, XYZVector posTrackAtCalo, XYZVector momTrackAtCalo, double smearing=0., unsigned int nLayers=10 );
         double getTofFrankAvg( Cluster* cluster, XYZVector posTrackAtCalo, XYZVector momTrackAtCalo, double smearing=0., unsigned int nLayers=10 );
 
+        XYZVector getFastestContPos(SimCalorimeterHit* hit);
+        int getNEcalHits(Cluster* cluster);
 
         unique_ptr<TFile> _file;
         unique_ptr<TTree> _tree;
@@ -61,18 +65,24 @@ class SETAnalysis : public Processor {
         double _setHitTime;
         XYZVector _setPosTrue;
 
-        XYZVector _caloPosTrue;
-        double _caloTofTrue;
-        double _caloTofClosest;
-        double _caloTofFastest;
-        double _caloTofFrankFit;
-        double _caloTofFrankAvg;
+        int _nEcalHits;
+        XYZVector _posClosest;
+        XYZVector _posClosestSim;
+        double _tofClosest;
+        double _tofClosestSim;
+        XYZVector _posFastest;
+        XYZVector _posFastestSim;
+        double _tofFastest;
+        double _tofFastestSim;
+        double _tofFrankFit;
+        double _tofFrankAvg;
 
         double _trackLengthSet;
         double _trackLengthCalo;
 
         double _bField;
         double _tpcROuter;
+        double _smearing;
 };
 
 

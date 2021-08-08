@@ -1,5 +1,5 @@
 #!/bin/bash
-for i in 1
+for i in 1 2
 do
     cd /afs/desy.de/user/d/dudarboh/dust/job_files/jobs
     mkdir /afs/desy.de/user/d/dudarboh/dust/final_files/SET/tmp

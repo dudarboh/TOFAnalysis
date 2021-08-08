@@ -32,6 +32,12 @@ SETAnalysis::SETAnalysis() : Processor("SETAnalysis"){
                                string("Name of the output root file"),
                                _outputFileName,
                                string("SETAnalysis_RENAME.root"));
+
+    registerProcessorParameter(string("smearing"),
+                               string("Time resolution of ECAL hits"),
+                               _smearing,
+                               double(0.));
+
 }
 
 void SETAnalysis::init(){
@@ -54,12 +60,19 @@ void SETAnalysis::init(){
     _tree->Branch("ts_calo_d0", &_tsCaloD0);
     _tree->Branch("ts_calo_z0", &_tsCaloZ0);
 
-    _tree->Branch("calo_pos_true", &_caloPosTrue);
-    _tree->Branch("calo_tof_true", &_caloTofTrue);
-    _tree->Branch("calo_tof_closest", &_caloTofClosest);
-    _tree->Branch("calo_tof_fastest", &_caloTofFastest);
-    _tree->Branch("calo_tof_frank_fit", &_caloTofFrankFit);
-    _tree->Branch("calo_tof_frank_avg", &_caloTofFrankAvg);
+    _tree->Branch("n_ecal_hits", &_nEcalHits);
+    _tree->Branch("pos_closest", &_posClosest);
+    _tree->Branch("pos_closest_sim", &_posClosestSim);
+    _tree->Branch("tof_closest", &_tofClosest);
+    _tree->Branch("tof_closest_sim", &_tofClosestSim);
+
+    _tree->Branch("pos_fastest", &_posFastest);
+    _tree->Branch("pos_fastest_sim", &_posFastestSim);
+    _tree->Branch("tof_fastest", &_tofFastest);
+    _tree->Branch("tof_fastest_sim", &_tofFastestSim);
+
+    _tree->Branch("tof_frank_fit", &_tofFrankFit);
+    _tree->Branch("tof_frank_avg", &_tofFrankAvg);
 
     _tree->Branch("n_set_hits", &_nSetHits);
     _tree->Branch("set_hit_pos", &_setHitPos);
@@ -79,7 +92,7 @@ void SETAnalysis::processEvent(LCEvent* evt){
     LCCollection* pfos = evt->getCollection("PandoraPFOs");
     LCRelationNavigator pfoToMc( evt->getCollection("RecoMCTruthLink") );
     LCRelationNavigator spPointToSimHit( evt->getCollection("SETSpacePointRelations") );
-
+    LCRelationNavigator caloHitToSimHit( evt->getCollection("EcalBarrelRelationsSimRec") );
 
     for (int i=0; i<pfos->getNumberOfElements(); ++i){
         ReconstructedParticle* pfo = dynamic_cast <ReconstructedParticle*> ( pfos->getElementAt(i) );
@@ -130,11 +143,56 @@ void SETAnalysis::processEvent(LCEvent* evt){
 
         _trackLengthSet = getTrackLength(track, TrackState::AtIP, TrackState::AtLastHit);
         _trackLengthCalo = getTrackLength(track, TrackState::AtIP, TrackState::AtCalorimeter);
+        _tofFrankFit = getTofFrankFit( cluster, _tsCaloPos, _tsCaloMom, _smearing);
+        _tofFrankAvg = getTofFrankAvg( cluster, _tsCaloPos, _tsCaloMom, _smearing);
 
-        _caloTofClosest = getTofClosest( cluster, _tsCaloPos);
-        _caloTofFastest = getTofFastest( cluster, _tsCaloPos);
-        _caloTofFrankFit = getTofFrankFit( cluster, _tsCaloPos, _tsCaloMom);
-        _caloTofFrankAvg = getTofFrankAvg( cluster, _tsCaloPos, _tsCaloMom);
+        _nEcalHits = getNEcalHits(cluster);
+
+        CalorimeterHit* closestHit =  getClosestHit( cluster, _tsCaloPos);
+        if (closestHit != nullptr){
+            _posClosest = XYZVector( closestHit->getPosition()[0], closestHit->getPosition()[1], closestHit->getPosition()[2] );
+            _tofClosest = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearing ) - ( _posClosest - _tsCaloPos ).r()/CLHEP::c_light;
+
+            //0 SimHits in barrel collection if in hit is in the ENDCAP!
+            int nClosestSimHits = caloHitToSimHit.getRelatedToObjects(closestHit).size();
+            if (nClosestSimHits != 0){
+                SimCalorimeterHit* closestSimHit = dynamic_cast<SimCalorimeterHit*> ( caloHitToSimHit.getRelatedToObjects(closestHit)[0] );
+                _posClosestSim = getFastestContPos(closestSimHit);
+                _tofClosestSim = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearing ) - ( _posClosestSim - _tsCaloPos ).r()/CLHEP::c_light;
+            }
+            else {
+                _posClosestSim = XYZVector();
+                _tofClosestSim = 0.;
+            }
+        }
+        else{
+            _posClosest = XYZVector();
+            _tofClosest = 0.;
+            _posClosestSim = XYZVector();
+            _tofClosestSim = 0.;
+        }
+
+        CalorimeterHit* fastestHit =  getFastestHit( cluster );
+        if (closestHit != nullptr){
+            _posFastest = XYZVector( fastestHit->getPosition()[0], fastestHit->getPosition()[1], fastestHit->getPosition()[2] );
+            _tofFastest = CLHEP::RandGauss::shoot( fastestHit->getTime(), _smearing ) - ( _posFastest - _tsCaloPos ).r()/CLHEP::c_light;
+            int nFastestSimHits = caloHitToSimHit.getRelatedToObjects(fastestHit).size();
+            if (nFastestSimHits != 0){
+                SimCalorimeterHit* fastestSimHit = dynamic_cast<SimCalorimeterHit*> ( caloHitToSimHit.getRelatedToObjects(fastestHit)[0] );
+                _posFastestSim = getFastestContPos(fastestSimHit);
+                _tofFastestSim = CLHEP::RandGauss::shoot( fastestHit->getTime(), _smearing ) - ( _posFastestSim - _tsCaloPos ).r()/CLHEP::c_light;
+            }
+            else {
+                _posFastestSim = XYZVector();
+                _tofFastestSim = 0.;
+            }
+        }
+        else{
+            _posFastest = XYZVector();
+            _tofFastest = 0.;
+            _posFastestSim = XYZVector();
+            _tofFastestSim = 0.;
+        }
 
         _tree->Fill();
     }
@@ -191,42 +249,43 @@ double SETAnalysis::getTrackLength(Track* track, int from, int to){
     return std::abs( (phi1 - phi2)/omega )*std::sqrt(1. + tanL*tanL);
 }
 
-double SETAnalysis::getTofClosest( Cluster* cluster, XYZVector posTrackAtCalo, double smearing ){
-    double closestDistance = std::numeric_limits<double>::max();
-    double time = std::numeric_limits<double>::max();
 
-    for ( const auto& hit : cluster->getCalorimeterHits() ){
+CalorimeterHit* SETAnalysis::getClosestHit( Cluster* cluster, XYZVector posTrackAtCalo){
+    CalorimeterHit* closestHit = nullptr;
+
+    double closestDistance = std::numeric_limits<double>::max();
+    for ( const auto hit : cluster->getCalorimeterHits() ){
         CHT hitType( hit->getType() );
         bool isECALHit = ( hitType.caloID() == CHT::ecal );
         if (! isECALHit) continue;
 
-        XYZVector pos( hit->getPosition()[0], hit->getPosition()[1], hit->getPosition()[2]);
-        if( (pos - posTrackAtCalo).r() < closestDistance ){
-            closestDistance = (pos - posTrackAtCalo).r();
-            time = CLHEP::RandGauss::shoot(hit->getTime(), smearing);
+        XYZVector hitPos( hit->getPosition()[0], hit->getPosition()[1], hit->getPosition()[2] );
+        double dToEntry = (hitPos - posTrackAtCalo).r();
+        if( dToEntry < closestDistance ){
+            closestDistance = dToEntry;
+            closestHit = hit;
         }
     }
-    return time - closestDistance/CLHEP::c_light;
+    return closestHit;
 }
 
 
-double SETAnalysis::getTofFastest( Cluster* cluster, XYZVector posTrackAtCalo, double smearing ){
-    double distance = std::numeric_limits<double>::max();
-    double time = std::numeric_limits<double>::max();
+CalorimeterHit* SETAnalysis::getFastestHit( Cluster* cluster ){
+    CalorimeterHit* earliestHit = nullptr;
 
-    for ( const auto& hit : cluster->getCalorimeterHits() ){
+    double earliestTime = std::numeric_limits<double>::max();
+    for ( const auto hit : cluster->getCalorimeterHits() ){
         CHT hitType( hit->getType() );
         bool isECALHit = ( hitType.caloID() == CHT::ecal );
         if (! isECALHit) continue;
 
-        XYZVector pos( hit->getPosition()[0], hit->getPosition()[1], hit->getPosition()[2] );
-        double hit_time = CLHEP::RandGauss::shoot(hit->getTime(), smearing);
-        if( hit_time < time ){
-            time = hit_time;
-            distance = (pos - posTrackAtCalo).r();
+        double timeHit = hit->getTime();
+        if( timeHit < earliestTime ){
+            earliestTime = timeHit;
+            earliestHit = hit;
         }
     }
-    return time - distance/CLHEP::c_light;
+    return earliestHit;
 }
 
 
@@ -296,4 +355,29 @@ double SETAnalysis::getTofFrankAvg( Cluster* cluster, XYZVector posTrackAtCalo, 
         tof += time[l] - d[l]/CLHEP::c_light;
     }
     return tof / nLayers;
+}
+
+
+XYZVector SETAnalysis::getFastestContPos(SimCalorimeterHit* hit){
+    XYZVector pos;
+    double earliestTime = std::numeric_limits<double>::max();
+    for(int i=0; i < hit->getNMCParticles(); ++i) {
+        double contTime = hit->getTimeCont(i);
+        if(contTime < earliestTime){
+            pos = XYZVector(hit->getStepPosition(i)[0], hit->getStepPosition(i)[1], hit->getStepPosition(i)[2]);
+            earliestTime = contTime;
+        }
+    }
+    return pos;
+}
+
+
+int SETAnalysis::getNEcalHits(Cluster* cluster){
+    int nHits = 0;
+    for ( const auto hit : cluster->getCalorimeterHits() ){
+        CHT hitType( hit->getType() );
+        bool isECALHit = ( hitType.caloID() == CHT::ecal );
+        if (isECALHit) ++nHits;
+    }
+    return nHits;
 }

@@ -8,4 +8,4 @@ log = ../log/$(ProcId).log
 output = ../out/$(ProcId).out
 error = ../err/$(ProcId).err
 
-queue file from /afs/desy.de/user/d/dudarboh/SETAnalysis/job/2f_Z_hadronic_500.txt
+queue file from /afs/desy.de/user/d/dudarboh/SETAnalysis/job/2f_Z_hadronic_250gev.txt
