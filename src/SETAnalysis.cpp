@@ -81,6 +81,7 @@ void SETAnalysis::init(){
 
     _tree->Branch("track_length_set", &_trackLengthSet);
     _tree->Branch("track_length_calo", &_trackLengthCalo);
+    _tree->Branch("track_length_integral", &_trackLengthIntegral);
 
     _bField = MarlinUtil::getBzAtOrigin();
     _tpcROuter = getTpcR().second;
@@ -143,6 +144,7 @@ void SETAnalysis::processEvent(LCEvent* evt){
 
         _trackLengthSet = getTrackLength(track, TrackState::AtIP, TrackState::AtLastHit);
         _trackLengthCalo = getTrackLength(track, TrackState::AtIP, TrackState::AtCalorimeter);
+        _trackLengthIntegral = getTrackLengthIntegral(track);
         _tofFrankFit = getTofFrankFit( cluster, _tsCaloPos, _tsCaloMom, _smearing);
         _tofFrankAvg = getTofFrankAvg( cluster, _tsCaloPos, _tsCaloMom, _smearing);
 
@@ -247,6 +249,48 @@ double SETAnalysis::getTrackLength(Track* track, int from, int to){
     double phi2 = ts2->getPhi();
 
     return std::abs( (phi1 - phi2)/omega )*std::sqrt(1. + tanL*tanL);
+}
+
+
+double SETAnalysis::getTrackLengthIntegral(Track* track){
+    double trackLength = 0.;
+
+    //*** track length from IP state to 1st tracker hit state***
+    const TrackState* tsIp = track->getTrackState(TrackState::AtIP);
+    double phiIP = tsIp->getPhi();
+    double omegaIP = tsIp->getOmega();
+    double tanLIP = tsIp->getTanLambda();
+    const TrackState* tsFirst = track->getTrackState(TrackState::AtFirstHit);
+    double phiFirst = tsFirst->getPhi();
+    trackLength += std::abs( (phiIP - phiFirst)/omegaIP )*std::sqrt(1. + tanLIP*tanLIP);
+
+    //*** in the tracker region sum hit-by-hit assuming straight line path between hits***
+    vector <TrackerHit*> trackHits = track->getTrackerHits();
+
+    auto sortByR = [](TrackerHit* a, TrackerHit* b) {
+        XYZVector posA = XYZVector(a->getPosition()[0], a->getPosition()[1], a->getPosition()[2]);
+        XYZVector posB = XYZVector(b->getPosition()[0], b->getPosition()[1], b->getPosition()[2]);
+        return posA.r() < posB.r();
+    };
+    sort(trackHits.begin(), trackHits.end(), sortByR);
+
+    for (size_t j=1; j < trackHits.size(); ++j){
+        XYZVector pos2 = XYZVector(trackHits[j]->getPosition()[0], trackHits[j]->getPosition()[1], trackHits[j]->getPosition()[2]);
+        XYZVector pos1 = XYZVector(trackHits[j-1]->getPosition()[0], trackHits[j-1]->getPosition()[1], trackHits[j-1]->getPosition()[2]);
+        trackLength += (pos2-pos1).r();
+    }
+
+
+    // track length from last tracker hit to the ECAL surface
+    const TrackState* tsLast = track->getTrackState(TrackState::AtLastHit);
+    double phiLast = tsLast->getPhi();
+    const TrackState* tsCalo = track->getTrackState(TrackState::AtCalorimeter);
+    double phiCalo = tsCalo->getPhi();
+    double omegaCalo = tsCalo->getOmega();
+    double tanLCalo = tsCalo->getTanLambda();
+
+    trackLength += std::abs( (phiLast - phiCalo)/omegaCalo )*std::sqrt(1. + tanLCalo*tanLCalo);
+    return trackLength;
 }
 
 

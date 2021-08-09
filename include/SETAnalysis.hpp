@@ -31,6 +31,7 @@ class SETAnalysis : public Processor {
         pair<double, double> getTpcR();
         vector<TrackerHit*> getSetHits(Track* track, double tpcROuter);
         double getTrackLength(Track* track, int from=TrackState::AtIP, int to=TrackState::AtCalorimeter);
+        double getTrackLengthIntegral(Track* track);
 
         CalorimeterHit* getFastestHit( Cluster* cluster);
         CalorimeterHit* getClosestHit( Cluster* cluster, XYZVector posTrackAtCalo);
@@ -79,6 +80,7 @@ class SETAnalysis : public Processor {
 
         double _trackLengthSet;
         double _trackLengthCalo;
+        double _trackLengthIntegral;
 
         double _bField;
         double _tpcROuter;
