@@ -44,6 +44,7 @@ void SETAnalysis::init(){
     _file.reset( new TFile(_outputFileName.c_str(), "RECREATE") );
     _tree.reset( new TTree("SETAnalysis", "SETAnalysis") );
 
+    _tree->Branch("pdg", &_pdg);
     _tree->Branch("ts_last_pos", &_tsLastPos);
     _tree->Branch("ts_last_mom", &_tsLastMom);
     _tree->Branch("ts_last_omega", &_tsLastOmega);
@@ -113,11 +114,14 @@ void SETAnalysis::processEvent(LCEvent* evt){
 
         ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+        _pdg = mc->getPDG();
+
         vector<TrackerHit*> setHits = getSetHits(track, _tpcROuter);
         _nSetHits = setHits.size();
-        if (_nSetHits != 1) continue;
+        _nEcalHits = getNEcalHits(cluster);
+        if (_nSetHits != 1 || _nEcalHits == 0) continue;
         _setHitPos = XYZVector( setHits[0]->getPosition()[0], setHits[0]->getPosition()[1], setHits[0]->getPosition()[2] );
-        _setHitTime =  setHits[0]->getTime();
+        _setHitTime = CLHEP::RandGauss::shoot( setHits[0]->getTime(), _smearing ) ;
 
         SimTrackerHit* setSimHit = dynamic_cast <SimTrackerHit*> (spPointToSimHit.getRelatedToObjects( setHits[0] )[0] );
         _setPosTrue = XYZVector( setSimHit->getPosition()[0], setSimHit->getPosition()[1], setSimHit->getPosition()[2] );
@@ -145,57 +149,39 @@ void SETAnalysis::processEvent(LCEvent* evt){
         _trackLengthSet = getTrackLength(track, TrackState::AtIP, TrackState::AtLastHit);
         _trackLengthCalo = getTrackLength(track, TrackState::AtIP, TrackState::AtCalorimeter);
         _trackLengthIntegral = getTrackLengthIntegral(track);
-        _tofFrankFit = getTofFrankFit( cluster, _tsCaloPos, _tsCaloMom, _smearing);
-        _tofFrankAvg = getTofFrankAvg( cluster, _tsCaloPos, _tsCaloMom, _smearing);
+        _tofFrankFit = getTofFrankFit( cluster, _tsCaloPos, _tsCaloMom, _smearing );
+        _tofFrankAvg = getTofFrankAvg( cluster, _tsCaloPos, _tsCaloMom, _smearing );
 
-        _nEcalHits = getNEcalHits(cluster);
 
         CalorimeterHit* closestHit =  getClosestHit( cluster, _tsCaloPos);
-        if (closestHit != nullptr){
-            _posClosest = XYZVector( closestHit->getPosition()[0], closestHit->getPosition()[1], closestHit->getPosition()[2] );
-            _tofClosest = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearing ) - ( _posClosest - _tsCaloPos ).r()/CLHEP::c_light;
+        _posClosest = XYZVector( closestHit->getPosition()[0], closestHit->getPosition()[1], closestHit->getPosition()[2] );
+        _tofClosest = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearing ) - ( _posClosest - _tsCaloPos ).r()/CLHEP::c_light;
 
-            //0 SimHits in barrel collection if in hit is in the ENDCAP!
-            int nClosestSimHits = caloHitToSimHit.getRelatedToObjects(closestHit).size();
-            if (nClosestSimHits != 0){
-                SimCalorimeterHit* closestSimHit = dynamic_cast<SimCalorimeterHit*> ( caloHitToSimHit.getRelatedToObjects(closestHit)[0] );
-                _posClosestSim = getFastestContPos(closestSimHit);
-                _tofClosestSim = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearing ) - ( _posClosestSim - _tsCaloPos ).r()/CLHEP::c_light;
-            }
-            else {
-                _posClosestSim = XYZVector();
-                _tofClosestSim = 0.;
-            }
+        //0 SimHits in barrel collection if in hit is in the ENDCAP!
+        int nClosestSimHits = caloHitToSimHit.getRelatedToObjects(closestHit).size();
+        if (nClosestSimHits != 0){
+            SimCalorimeterHit* closestSimHit = dynamic_cast<SimCalorimeterHit*> ( caloHitToSimHit.getRelatedToObjects(closestHit)[0] );
+            _posClosestSim = getFastestContPos(closestSimHit);
+            _tofClosestSim = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearing ) - ( _posClosestSim - _tsCaloPos ).r()/CLHEP::c_light;
         }
-        else{
-            _posClosest = XYZVector();
-            _tofClosest = 0.;
+        else {
             _posClosestSim = XYZVector();
             _tofClosestSim = 0.;
         }
 
         CalorimeterHit* fastestHit =  getFastestHit( cluster );
-        if (closestHit != nullptr){
-            _posFastest = XYZVector( fastestHit->getPosition()[0], fastestHit->getPosition()[1], fastestHit->getPosition()[2] );
-            _tofFastest = CLHEP::RandGauss::shoot( fastestHit->getTime(), _smearing ) - ( _posFastest - _tsCaloPos ).r()/CLHEP::c_light;
-            int nFastestSimHits = caloHitToSimHit.getRelatedToObjects(fastestHit).size();
-            if (nFastestSimHits != 0){
-                SimCalorimeterHit* fastestSimHit = dynamic_cast<SimCalorimeterHit*> ( caloHitToSimHit.getRelatedToObjects(fastestHit)[0] );
-                _posFastestSim = getFastestContPos(fastestSimHit);
-                _tofFastestSim = CLHEP::RandGauss::shoot( fastestHit->getTime(), _smearing ) - ( _posFastestSim - _tsCaloPos ).r()/CLHEP::c_light;
-            }
-            else {
-                _posFastestSim = XYZVector();
-                _tofFastestSim = 0.;
-            }
+        _posFastest = XYZVector( fastestHit->getPosition()[0], fastestHit->getPosition()[1], fastestHit->getPosition()[2] );
+        _tofFastest = CLHEP::RandGauss::shoot( fastestHit->getTime(), _smearing ) - ( _posFastest - _tsCaloPos ).r()/CLHEP::c_light;
+        int nFastestSimHits = caloHitToSimHit.getRelatedToObjects(fastestHit).size();
+        if (nFastestSimHits != 0){
+            SimCalorimeterHit* fastestSimHit = dynamic_cast<SimCalorimeterHit*> ( caloHitToSimHit.getRelatedToObjects(fastestHit)[0] );
+            _posFastestSim = getFastestContPos(fastestSimHit);
+            _tofFastestSim = CLHEP::RandGauss::shoot( fastestHit->getTime(), _smearing ) - ( _posFastestSim - _tsCaloPos ).r()/CLHEP::c_light;
         }
-        else{
-            _posFastest = XYZVector();
-            _tofFastest = 0.;
+        else {
             _posFastestSim = XYZVector();
             _tofFastestSim = 0.;
         }
-
         _tree->Fill();
     }
 

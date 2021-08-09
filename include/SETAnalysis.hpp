@@ -45,6 +45,7 @@ class SETAnalysis : public Processor {
         unique_ptr<TTree> _tree;
         string _outputFileName;
 
+        int _pdg;
         XYZVector _tsLastPos;
         XYZVector _tsLastMom;
         double _tsLastOmega;

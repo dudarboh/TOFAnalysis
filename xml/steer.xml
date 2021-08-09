@@ -24,6 +24,7 @@
 
 
     <processor name="MySETAnalysis" type="SETAnalysis">
+        <parameter name="smearing" type="double">30.</parameter>        
     </processor>
 
 
