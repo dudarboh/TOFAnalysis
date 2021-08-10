@@ -351,8 +351,7 @@ double SETAnalysis::getTofFrankFit( Cluster* cluster, XYZVector posTrackAtCalo, 
 
     TGraphErrors gr(nLayers, &d[0], &time[0], &d_err[0], &time_err[0]);
     gr.Fit("pol1", "Q");
-    TF1* fit = gr.GetFunction("pol1");
-    return fit->GetParameter(0);
+    return gr.GetFunction("pol1")->GetParameter(0);
 }
 
 

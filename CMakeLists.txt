@@ -38,6 +38,6 @@ FOREACH(pkg Marlin MarlinUtil)
     target_link_libraries(${PROJECT_NAME} ${${pkg}_LIBRARIES})
 ENDFOREACH()
 
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -ansi -pedantic -Wno-effc++")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wall -ansi -pedantic -Wno-effc++ -g")
 message(STATUS "${Yellow}CMAKE_CXX_FLAGS:  ${CMAKE_CXX_FLAGS} ${Reset}")
 install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/lib)
