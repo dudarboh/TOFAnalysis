@@ -29,6 +29,8 @@ pdgs = [211, 321, 2212]
 
 canvas = ROOT.TCanvas()
 canvas.Divide(2, 1)
+canvas.SetGridx()
+canvas.SetGridy()
 graphs = {}
 
 for i, df in zip(df_names, dfs):
@@ -37,9 +39,10 @@ for i, df in zip(df_names, dfs):
         h_all = df.Filter("n_ecal_hits > 0 && abs(pos_fastest.z()) < 2000.")\
              .Define("mom", "ts_calo_mom.r()")\
              .Define("beta", beta)\
-             .Histo2D(("h_all", "title;mom;beta", 90, 1., 10., 3500, 0.7, 1.05), "mom", "beta")
+             .Histo2D(("h_all", "Method: {} {} ps; p (GeV);#beta".format(j, i), 30, 1., 10., 2000, 0.7, 1.05), "mom", "beta")
 
         canvas.cd(1)
+        ROOT.gPad.SetLogz()
         h_all.Draw("colz")
         h_all.SetStats(0)
 
@@ -53,7 +56,7 @@ for i, df in zip(df_names, dfs):
                  .Filter("abs(pdg) == {}".format(pdg))\
                  .Define("mom", "ts_calo_mom.r()")\
                  .Define("beta", beta)\
-                 .Histo2D(("h", "title;mom;beta", 90, 1., 10., 2000, 0.7, 1.05), "mom", "beta")
+                 .Histo2D(("h", "title;mom;beta", 30, 1., 10., 1000, 0.7, 1.05), "mom", "beta")
 
             h.FitSlicesY()
             h_1 = ROOT.gROOT.FindObject("h_1")
@@ -67,8 +70,11 @@ for i, df in zip(df_names, dfs):
 
             canvas.cd(2)
             gr.Draw("APE" if pdg == 211 else "PEsame")
+            gr.GetXaxis().SetRangeUser(1., 10.)
+            gr.GetYaxis().SetRangeUser(0.7, 1.05)
 
         canvas.Update()
+        canvas.Print("method_{}_{}_ps.png".format(j, i))
         input("wait")
         # sep_power = abs(m1-m2) / np.sqrt( (std1*std1 + std2*std2)/2. )
 

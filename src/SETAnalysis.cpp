@@ -34,7 +34,7 @@ SETAnalysis::SETAnalysis() : Processor("SETAnalysis"){
                                string("SETAnalysis_RENAME.root"));
 
     registerProcessorParameter(string("smearing"),
-                               string("Time resolution of ECAL hits"),
+                               string("Time resolution in ***ps***"),
                                _smearing,
                                double(0.));
 
@@ -121,7 +121,7 @@ void SETAnalysis::processEvent(LCEvent* evt){
         _nEcalHits = getNEcalHits(cluster);
         if (_nSetHits != 1 || _nEcalHits == 0) continue;
         _setHitPos = XYZVector( setHits[0]->getPosition()[0], setHits[0]->getPosition()[1], setHits[0]->getPosition()[2] );
-        _setHitTime = CLHEP::RandGauss::shoot( setHits[0]->getTime(), _smearing ) ;
+        _setHitTime = CLHEP::RandGauss::shoot( setHits[0]->getTime(), _smearing / 1000. ) ;
 
         SimTrackerHit* setSimHit = dynamic_cast <SimTrackerHit*> (spPointToSimHit.getRelatedToObjects( setHits[0] )[0] );
         _setPosTrue = XYZVector( setSimHit->getPosition()[0], setSimHit->getPosition()[1], setSimHit->getPosition()[2] );
@@ -149,20 +149,20 @@ void SETAnalysis::processEvent(LCEvent* evt){
         _trackLengthSet = getTrackLength(track, TrackState::AtIP, TrackState::AtLastHit);
         _trackLengthCalo = getTrackLength(track, TrackState::AtIP, TrackState::AtCalorimeter);
         _trackLengthIntegral = getTrackLengthIntegral(track);
-        _tofFrankFit = getTofFrankFit( cluster, _tsCaloPos, _tsCaloMom, _smearing );
-        _tofFrankAvg = getTofFrankAvg( cluster, _tsCaloPos, _tsCaloMom, _smearing );
+        _tofFrankFit = getTofFrankFit( cluster, _tsCaloPos, _tsCaloMom, _smearing / 1000. );
+        _tofFrankAvg = getTofFrankAvg( cluster, _tsCaloPos, _tsCaloMom, _smearing / 1000. );
 
 
         CalorimeterHit* closestHit =  getClosestHit( cluster, _tsCaloPos);
         _posClosest = XYZVector( closestHit->getPosition()[0], closestHit->getPosition()[1], closestHit->getPosition()[2] );
-        _tofClosest = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearing ) - ( _posClosest - _tsCaloPos ).r()/CLHEP::c_light;
+        _tofClosest = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearing / 1000. ) - ( _posClosest - _tsCaloPos ).r()/CLHEP::c_light;
 
         //0 SimHits in barrel collection if in hit is in the ENDCAP!
         int nClosestSimHits = caloHitToSimHit.getRelatedToObjects(closestHit).size();
         if (nClosestSimHits != 0){
             SimCalorimeterHit* closestSimHit = dynamic_cast<SimCalorimeterHit*> ( caloHitToSimHit.getRelatedToObjects(closestHit)[0] );
             _posClosestSim = getFastestContPos(closestSimHit);
-            _tofClosestSim = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearing ) - ( _posClosestSim - _tsCaloPos ).r()/CLHEP::c_light;
+            _tofClosestSim = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearing / 1000. ) - ( _posClosestSim - _tsCaloPos ).r()/CLHEP::c_light;
         }
         else {
             _posClosestSim = XYZVector();
@@ -171,12 +171,12 @@ void SETAnalysis::processEvent(LCEvent* evt){
 
         CalorimeterHit* fastestHit =  getFastestHit( cluster );
         _posFastest = XYZVector( fastestHit->getPosition()[0], fastestHit->getPosition()[1], fastestHit->getPosition()[2] );
-        _tofFastest = CLHEP::RandGauss::shoot( fastestHit->getTime(), _smearing ) - ( _posFastest - _tsCaloPos ).r()/CLHEP::c_light;
+        _tofFastest = CLHEP::RandGauss::shoot( fastestHit->getTime(), _smearing / 1000. ) - ( _posFastest - _tsCaloPos ).r()/CLHEP::c_light;
         int nFastestSimHits = caloHitToSimHit.getRelatedToObjects(fastestHit).size();
         if (nFastestSimHits != 0){
             SimCalorimeterHit* fastestSimHit = dynamic_cast<SimCalorimeterHit*> ( caloHitToSimHit.getRelatedToObjects(fastestHit)[0] );
             _posFastestSim = getFastestContPos(fastestSimHit);
-            _tofFastestSim = CLHEP::RandGauss::shoot( fastestHit->getTime(), _smearing ) - ( _posFastestSim - _tsCaloPos ).r()/CLHEP::c_light;
+            _tofFastestSim = CLHEP::RandGauss::shoot( fastestHit->getTime(), _smearing / 1000. ) - ( _posFastestSim - _tsCaloPos ).r()/CLHEP::c_light;
         }
         else {
             _posFastestSim = XYZVector();
