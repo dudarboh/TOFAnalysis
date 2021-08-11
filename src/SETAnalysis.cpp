@@ -41,6 +41,7 @@ SETAnalysis::SETAnalysis() : Processor("SETAnalysis"){
 }
 
 void SETAnalysis::init(){
+    _nEvent = 0;
     _file.reset( new TFile(_outputFileName.c_str(), "RECREATE") );
     _tree.reset( new TTree("SETAnalysis", "SETAnalysis") );
 
@@ -90,7 +91,8 @@ void SETAnalysis::init(){
 
 
 void SETAnalysis::processEvent(LCEvent* evt){
-
+    ++_nEvent;
+    cout<<"****** Event: "<<_nEvent<<endl;
     LCCollection* pfos = evt->getCollection("PandoraPFOs");
     LCRelationNavigator pfoToMc( evt->getCollection("RecoMCTruthLink") );
     LCRelationNavigator spPointToSimHit( evt->getCollection("SETSpacePointRelations") );
@@ -320,70 +322,70 @@ CalorimeterHit* SETAnalysis::getFastestHit( Cluster* cluster ){
 
 
 double SETAnalysis::getTofFrankFit( Cluster* cluster, XYZVector posTrackAtCalo, XYZVector momTrackAtCalo, double smearing, unsigned int nLayers ){
-    vector <double> d(nLayers);
-    vector <double> time(nLayers);
-    vector <double> d_err(nLayers);
-    vector <double> time_err(nLayers);
-    vector <double> closestDistanceToLine(nLayers);
+    vector <double> d;
+    vector <double> time;
+    vector <double> d_err;
+    vector <double> time_err;
 
     for (unsigned int l=0; l < nLayers; ++l){
-        closestDistanceToLine[l] = std::numeric_limits<double>::max();
-        d_err[l] = 0.;
-        time_err[l] = 0.1;
-    }
+        double closestDistance = std::numeric_limits<double>::max();
+        double closestTime = std::numeric_limits<double>::max();
+        double closestDistanceToLine = std::numeric_limits<double>::max();
 
-    for (unsigned int l=0; l < nLayers; ++l){
         for ( const auto& hit : cluster->getCalorimeterHits() ){
             CHT hitType( hit->getType() );
             bool isECALHit = ( hitType.caloID() == CHT::ecal );
-            if (! isECALHit) continue;
-            if (hitType.layer() != l) continue;
+            if ( (! isECALHit) || (hitType.layer() != l) ) continue;
 
             XYZVector pos( hit->getPosition()[0], hit->getPosition()[1], hit->getPosition()[2] );
             double dToLine = (pos - posTrackAtCalo).Cross(momTrackAtCalo.unit()).r();
-            if (dToLine < closestDistanceToLine[l]){
-                closestDistanceToLine[l] = dToLine;
-                time[l] = CLHEP::RandGauss::shoot(hit->getTime(), smearing);
-                d[l] = (pos - posTrackAtCalo).r();
+            if (dToLine < closestDistanceToLine){
+                closestDistance = (pos - posTrackAtCalo).r();
+                closestTime = CLHEP::RandGauss::shoot(hit->getTime(), smearing);
+                closestDistanceToLine = dToLine;
             }
         }
+        if ( closestDistanceToLine == std::numeric_limits<double>::max() ) continue;
+        d.push_back(closestDistance);
+        time.push_back(closestTime);
+        d_err.push_back(0.);
+        time_err.push_back(0.1);
     }
 
-    TGraphErrors gr(nLayers, &d[0], &time[0], &d_err[0], &time_err[0]);
+    TGraphErrors gr(d.size(), &d[0], &time[0], &d_err[0], &time_err[0]);
     gr.Fit("pol1", "Q");
     return gr.GetFunction("pol1")->GetParameter(0);
 }
 
 
 double SETAnalysis::getTofFrankAvg( Cluster* cluster, XYZVector posTrackAtCalo, XYZVector momTrackAtCalo, double smearing, unsigned int nLayers ){
-    vector <double> d(nLayers);
-    vector <double> time(nLayers);
-    vector <double> closestDistanceToLine(nLayers);
-
     double tof = 0.;
+    int nHits = 0;
 
     for (unsigned int l=0; l < nLayers; ++l){
-        closestDistanceToLine[l] = std::numeric_limits<double>::max();
-    }
+        double closestDistance = std::numeric_limits<double>::max();
+        double closestTime = std::numeric_limits<double>::max();
+        double closestDistanceToLine = std::numeric_limits<double>::max();
 
-    for (unsigned int l=0; l < nLayers; ++l){
         for ( const auto& hit : cluster->getCalorimeterHits() ){
             CHT hitType( hit->getType() );
             bool isECALHit = ( hitType.caloID() == CHT::ecal );
-            if (! isECALHit) continue;
-            if (hitType.layer() != l) continue;
+            if ( (! isECALHit) || (hitType.layer() != l) ) continue;
 
             XYZVector pos( hit->getPosition()[0], hit->getPosition()[1], hit->getPosition()[2] );
             double dToLine = (pos - posTrackAtCalo).Cross(momTrackAtCalo.unit()).r();
-            if (dToLine < closestDistanceToLine[l]){
-                closestDistanceToLine[l] = dToLine;
-                time[l] = CLHEP::RandGauss::shoot(hit->getTime(), smearing);
-                d[l] = (pos - posTrackAtCalo).r();
+            if (dToLine < closestDistanceToLine){
+                closestDistance = (pos - posTrackAtCalo).r();
+                closestTime = CLHEP::RandGauss::shoot(hit->getTime(), smearing);
+                closestDistanceToLine = dToLine;
             }
         }
-        tof += time[l] - d[l]/CLHEP::c_light;
+        if ( closestDistanceToLine == std::numeric_limits<double>::max() ) continue;
+
+        tof += closestTime - closestDistance/CLHEP::c_light;
+        ++nHits;
     }
-    return tof / nLayers;
+    return tof / nHits;
 }
 
 

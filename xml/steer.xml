@@ -2,9 +2,10 @@
 
     <global>
 		<parameter name="LCIOInputFiles">
-            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/250-SetA/2f_hadronic_eR_pL/ILD_l5_o1_v02/v02-02/00015164/000/rv02-02.sv02-02.mILD_l5_o1_v02.E250-SetA.I500012.P2f_z_h.eR.pL.n000_001.d_rec_00015164_310.slcio
+            <!-- /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/250-SetA/2f_hadronic_eR_pL/ILD_l5_o1_v02/v02-02/00015164/000/rv02-02.sv02-02.mILD_l5_o1_v02.E250-SetA.I500012.P2f_z_h.eR.pL.n000_001.d_rec_00015164_310.slcio -->
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/250-SetA/2f_hadronic_eL_pR/ILD_l5_o1_v02/v02-02/00015161/000/rv02-02.sv02-02.mILD_l5_o1_v02.E250-SetA.I500010.P2f_z_h.eL.pR.n000_125.d_rec_00015161_456.slcio
         </parameter>
-		<parameter name="MaxRecordNumber" value="0" />
+		<parameter name="MaxRecordNumber" value="5" />
         <parameter name="SupressCheck" value="false" />
 		<parameter name="AllowToModifyEvent" value="false" />
 	</global>
@@ -24,7 +25,7 @@
 
 
     <processor name="MySETAnalysis" type="SETAnalysis">
-        <parameter name="smearing" type="double">100.</parameter>
+        <parameter name="smearing" type="double">30.</parameter>
     </processor>
 
 

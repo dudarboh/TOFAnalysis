@@ -45,17 +45,18 @@ class SETAnalysis : public Processor {
         unique_ptr<TTree> _tree;
         string _outputFileName;
 
+        int _nEvent;
         int _pdg;
-        XYZVector _tsLastPos;
-        XYZVector _tsLastMom;
+        XYZVector _tsLastPos{};
+        XYZVector _tsLastMom{};
         double _tsLastOmega;
         double _tsLastTanL;
         double _tsLastPhi;
         double _tsLastD0;
         double _tsLastZ0;
 
-        XYZVector _tsCaloPos;
-        XYZVector _tsCaloMom;
+        XYZVector _tsCaloPos{};
+        XYZVector _tsCaloMom{};
         double _tsCaloOmega;
         double _tsCaloTanL;
         double _tsCaloPhi;
@@ -63,17 +64,17 @@ class SETAnalysis : public Processor {
         double _tsCaloZ0;
 
         int _nSetHits;
-        XYZVector _setHitPos;
+        XYZVector _setHitPos{};
         double _setHitTime;
-        XYZVector _setPosTrue;
+        XYZVector _setPosTrue{};
 
         int _nEcalHits;
-        XYZVector _posClosest;
-        XYZVector _posClosestSim;
+        XYZVector _posClosest{};
+        XYZVector _posClosestSim{};
         double _tofClosest;
         double _tofClosestSim;
-        XYZVector _posFastest;
-        XYZVector _posFastestSim;
+        XYZVector _posFastest{};
+        XYZVector _posFastestSim{};
         double _tofFastest;
         double _tofFastestSim;
         double _tofFrankFit;

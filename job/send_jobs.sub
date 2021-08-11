@@ -5,11 +5,13 @@ initialdir = /nfs/dust/ilc/user/dudarboh/job_files/jobs
 should_transfer_files = NO
 
 request_cpus = 1
-request_disk = 100MB
-request_memory = 500MB
+request_disk = 2000MB
+request_memory = 2000MB
 
 log = ../log/$(ProcId).log
 output = ../out/$(ProcId).out
 error = ../err/$(ProcId).err
+
+max_retries = 3
 
 queue file from /afs/desy.de/user/d/dudarboh/SETAnalysis/job/2f_Z_hadronic_250gev.txt
