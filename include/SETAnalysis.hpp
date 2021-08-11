@@ -17,6 +17,7 @@
 
 using marlin::Processor;
 using std::string, std::cout, std::endl, std::unique_ptr, std::vector, std::pair;
+using ROOT::Math::XYZVectorF;
 using ROOT::Math::XYZVector;
 
 class SETAnalysis : public Processor {
@@ -34,11 +35,10 @@ class SETAnalysis : public Processor {
         double getTrackLengthIntegral(Track* track);
 
         CalorimeterHit* getFastestHit( Cluster* cluster);
-        CalorimeterHit* getClosestHit( Cluster* cluster, XYZVector posTrackAtCalo);
-        double getTofFrankFit( Cluster* cluster, XYZVector posTrackAtCalo, XYZVector momTrackAtCalo, double smearing=0., unsigned int nLayers=10 );
-        double getTofFrankAvg( Cluster* cluster, XYZVector posTrackAtCalo, XYZVector momTrackAtCalo, double smearing=0., unsigned int nLayers=10 );
+        CalorimeterHit* getClosestHit( Cluster* cluster, XYZVectorF posTrackAtCalo);
+        double getTofFrankFit( Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing=0., unsigned int nLayers=10 );
+        double getTofFrankAvg( Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing=0., unsigned int nLayers=10 );
 
-        XYZVector getFastestContPos(SimCalorimeterHit* hit);
         int getNEcalHits(Cluster* cluster);
 
         unique_ptr<TFile> _file;
@@ -47,16 +47,16 @@ class SETAnalysis : public Processor {
 
         int _nEvent;
         int _pdg;
-        XYZVector _tsLastPos{};
-        XYZVector _tsLastMom{};
+        XYZVectorF _tsLastPos{};
+        XYZVectorF _tsLastMom{};
         double _tsLastOmega;
         double _tsLastTanL;
         double _tsLastPhi;
         double _tsLastD0;
         double _tsLastZ0;
 
-        XYZVector _tsCaloPos{};
-        XYZVector _tsCaloMom{};
+        XYZVectorF _tsCaloPos{};
+        XYZVectorF _tsCaloMom{};
         double _tsCaloOmega;
         double _tsCaloTanL;
         double _tsCaloPhi;
@@ -69,14 +69,10 @@ class SETAnalysis : public Processor {
         XYZVector _setPosTrue{};
 
         int _nEcalHits;
-        XYZVector _posClosest{};
-        XYZVector _posClosestSim{};
+        XYZVectorF _posClosest{};
         double _tofClosest;
-        double _tofClosestSim;
-        XYZVector _posFastest{};
-        XYZVector _posFastestSim{};
+        XYZVectorF _posFastest{};
         double _tofFastest;
-        double _tofFastestSim;
         double _tofFrankFit;
         double _tofFrankAvg;
 

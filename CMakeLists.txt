@@ -25,7 +25,7 @@ project(SETAnalysis VERSION 1.0)
 
 # -03 compiler optimization for speed
 # -O0 disable for valgrind debugging
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g -Wno-effc++")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -Wno-effc++")
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 add_library(${PROJECT_NAME} SHARED ${PROJECT_SOURCE_DIR}/src/SETAnalysis.cpp)
