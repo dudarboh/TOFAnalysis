@@ -19,6 +19,7 @@
 #include "Math/Vector3D.h"
 #include "TGraphErrors.h"
 #include "TF1.h"
+#include "TString.h"
 
 using dd4hep::Detector;
 using dd4hep::DetElement;
@@ -31,11 +32,6 @@ SETAnalysis::SETAnalysis() : Processor("SETAnalysis"){
                                string("Name of the output root file"),
                                _outputFileName,
                                string("SETAnalysis_RENAME.root"));
-
-    registerProcessorParameter(string("smearing"),
-                               string("Time resolution in ***ps***"),
-                               _smearing,
-                               double(0.));
 
 }
 
@@ -61,24 +57,26 @@ void SETAnalysis::init(){
     _tree->Branch("ts_calo_d0", &_tsCaloD0);
     _tree->Branch("ts_calo_z0", &_tsCaloZ0);
 
+    _tree->Branch("has_set_hit", &_hasSetHit);
     _tree->Branch("n_ecal_hits", &_nEcalHits);
+
+    _tree->Branch("pos_set_hit", &_posSetHit);
     _tree->Branch("pos_closest", &_posClosest);
-    _tree->Branch("tof_closest", &_tofClosest);
-
-    _tree->Branch("pos_fastest", &_posFastest);
-    _tree->Branch("tof_fastest", &_tofFastest);
-
-    _tree->Branch("tof_frank_fit", &_tofFrankFit);
-    _tree->Branch("tof_frank_avg", &_tofFrankAvg);
-
-    _tree->Branch("n_set_hits", &_nSetHits);
-    _tree->Branch("set_hit_pos", &_setHitPos);
-    _tree->Branch("set_hit_time", &_setHitTime);
-    _tree->Branch("set_pos_true", &_setPosTrue);
 
     _tree->Branch("track_length_set", &_trackLengthSet);
     _tree->Branch("track_length_calo", &_trackLengthCalo);
     // _tree->Branch("track_length_integral", &_trackLengthIntegral);
+
+    for(unsigned int i=0; i < std::size(_smearings); ++i ){
+        _tree->Branch(Form("pos_fastest_%d", int(_smearings[i]) ), &( _posFastest[i] ) );
+        _tree->Branch(Form("tof_fastest_%d", int(_smearings[i]) ), &( _tofFastest[i] ) );
+        _tree->Branch(Form("tof_closest_%d", int(_smearings[i]) ), &( _tofClosest[i] ) );
+        _tree->Branch(Form("tof_set_front_%d", int(_smearings[i]) ), &( _tofSetFront[i] ) );
+        _tree->Branch(Form("tof_set_back_%d", int(_smearings[i]) ), &( _tofSetBack[i] ) );
+        _tree->Branch(Form("tof_frank_fit_%d", int(_smearings[i]) ), &( _tofFrankFit[i] ) );
+        _tree->Branch(Form("tof_frank_avg_%d", int(_smearings[i]) ), &( _tofFrankAvg[i] ) );
+    }
+
 
     _bField = MarlinUtil::getBzAtOrigin();
     _tpcROuter = getTpcR().second;
@@ -99,32 +97,36 @@ void SETAnalysis::processEvent(LCEvent* evt){
     // LCRelationNavigator caloHitToSimHit( evt->getCollection("EcalBarrelRelationsSimRec") );
 
     for (int i=0; i<pfos->getNumberOfElements(); ++i){
+        /////////////////////////////////// Load all info from PFO
         ReconstructedParticle* pfo = dynamic_cast <ReconstructedParticle*> ( pfos->getElementAt(i) );
+
         MCParticle* mc = getMcMaxWeight(pfoToMc, pfo);
-        const vector<Track*>& tracks = pfo->getTracks();
+        if(mc == nullptr) continue;
+
         const vector<Cluster*>& clusters = pfo->getClusters();
-
-        if(mc == nullptr || tracks.size() != 1 || clusters.size() != 1) continue;
-
-        Track* track = tracks[0];
-        Cluster* cluster = clusters[0];
-        // const TrackState* tsIp = track->getTrackState(TrackState::AtIP);
-        // const TrackState* tsFirst = track->getTrackState(TrackState::AtFirstHit);
-        const TrackState* tsLast = track->getTrackState(TrackState::AtLastHit);
-        const TrackState* tsCalo = track->getTrackState(TrackState::AtCalorimeter);
-
-        vector<TrackerHit*> setHits = getSetHits(track, _tpcROuter);
-        _nSetHits = setHits.size();
+        if(clusters.size() != 1) continue;
+        Cluster* cluster = clusters.at(0);
         _nEcalHits = getNEcalHits(cluster);
-        if (_nSetHits == 0 || _nEcalHits == 0) continue;
+        if (_nEcalHits == 0) continue;
 
+        const vector<Track*>& tracks = pfo->getTracks();
+        if(tracks.size() != 1) continue;
+        Track* track = tracks.at(0);
+        TrackerHit* setHit = getSetHit(track, _tpcROuter);
+        _hasSetHit = (setHit != nullptr);
+        if (!_hasSetHit) continue;
+
+        ///////////////////////////////////
         _pdg = mc->getPDG();
-        _setHitPos.SetCoordinates( setHits[0]->getPosition() );
-        _setHitTime = CLHEP::RandGauss::shoot( setHits[0]->getTime(), _smearing / 1000. ) ;
+        _posSetHit.SetCoordinates( setHit->getPosition() );
 
-        SimTrackerHit* setSimHit = dynamic_cast <SimTrackerHit*> (spPointToSimHit.getRelatedToObjects( setHits[0] )[0] );
-        _setPosTrue.SetCoordinates( setSimHit->getPosition() );
+        const LCObjectVec& setSimHits = spPointToSimHit.getRelatedToObjects( setHit );
+        if (setSimHits.size() != 2) cout<<"AAAAAAAAAAAAAAAAAAAAAAAAAAA: "<<setSimHits.size()<<endl;
 
+
+
+        /////////////////WRITE TRACK STATES/////////////////////////
+        const TrackState* tsLast = track->getTrackState(TrackState::AtLastHit);
         _tsLastOmega = tsLast->getOmega();
         _tsLastTanL = tsLast->getTanLambda();
         _tsLastPhi = tsLast->getPhi();
@@ -135,6 +137,7 @@ void SETAnalysis::processEvent(LCEvent* evt){
         helixLast.Initialize_Canonical(_tsLastPhi, _tsLastD0, _tsLastZ0, _tsLastOmega, _tsLastTanL, _bField);
         _tsLastMom.SetCoordinates( helixLast.getMomentum() );
 
+        const TrackState* tsCalo = track->getTrackState(TrackState::AtCalorimeter);
         _tsCaloOmega = tsCalo->getOmega();
         _tsCaloTanL = tsCalo->getTanLambda();
         _tsCaloPhi = tsCalo->getPhi();
@@ -145,21 +148,30 @@ void SETAnalysis::processEvent(LCEvent* evt){
         helixCalo.Initialize_Canonical(_tsCaloPhi, _tsCaloD0, _tsCaloZ0, _tsCaloOmega, _tsCaloTanL, _bField);
         _tsCaloMom.SetCoordinates( helixCalo.getMomentum() );
 
+        ///////////////////////WRITE TRACK LENGTHS/////////////////////
         _trackLengthSet = getTrackLength(track, TrackState::AtIP, TrackState::AtLastHit);
         _trackLengthCalo = getTrackLength(track, TrackState::AtIP, TrackState::AtCalorimeter);
         // _trackLengthIntegral = getTrackLengthIntegral(track);
-        _tofFrankFit = getTofFrankFit( cluster, _tsCaloPos, _tsCaloMom, _smearing / 1000. );
-        _tofFrankAvg = getTofFrankAvg( cluster, _tsCaloPos, _tsCaloMom, _smearing / 1000. );
 
 
-        CalorimeterHit* closestHit =  getClosestHit( cluster, _tsCaloPos );
-        _posClosest .SetCoordinates( closestHit->getPosition() );
-        _tofClosest = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearing / 1000. ) - ( _posClosest - _tsCaloPos ).r()/CLHEP::c_light;
+        SimTrackerHit* setSimHitFront = dynamic_cast <SimTrackerHit*> (setSimHits.at(0) );
+        SimTrackerHit* setSimHitBack = dynamic_cast <SimTrackerHit*> (setSimHits.at(1) );
 
-        CalorimeterHit* fastestHit =  getFastestHit( cluster );
-        _posFastest.SetCoordinates( fastestHit->getPosition() );
-        _tofFastest = CLHEP::RandGauss::shoot( fastestHit->getTime(), _smearing / 1000. ) - ( _posFastest - _tsCaloPos ).r()/CLHEP::c_light;
 
+        CalorimeterHit* closestHit = getClosestHit( cluster, _tsCaloPos );
+        _posClosest.SetCoordinates( closestHit->getPosition() );
+
+        for(unsigned int j=0; j < std::size(_smearings); ++j ){
+            pair<XYZVectorF, double> fastestHit = getFastestHit( cluster, _smearings[j] / 1000. );
+            _posFastest[j] = fastestHit.first;
+            _tofFastest[j] = fastestHit.second - ( _posFastest[j] - _tsCaloPos ).r()/CLHEP::c_light;
+
+            _tofClosest[j] = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearings[j] / 1000. ) - ( _posClosest - _tsCaloPos ).r()/CLHEP::c_light;
+            _tofSetFront[j] = CLHEP::RandGauss::shoot( setSimHitFront->getTime(), _smearings[j] / 1000. );
+            _tofSetBack[j] =  CLHEP::RandGauss::shoot( setSimHitBack->getTime(), _smearings[j] / 1000. );
+            _tofFrankFit[j] = getTofFrankFit( cluster, _tsCaloPos, _tsCaloMom, _smearings[j] / 1000. );
+            _tofFrankAvg[j] = getTofFrankAvg( cluster, _tsCaloPos, _tsCaloMom, _smearings[j] / 1000. );
+        }
         _tree->Fill();
     }
 
@@ -190,15 +202,15 @@ pair<double, double> SETAnalysis::getTpcR(){
     return std::make_pair(rInner, rOuter);
 }
 
-vector<TrackerHit*> SETAnalysis::getSetHits(Track* track, double tpcROuter){
+TrackerHit* SETAnalysis::getSetHit(Track* track, double tpcROuter){
     const vector<TrackerHit*>& hits = track->getTrackerHits();
-    vector<TrackerHit*> setHits;
     XYZVector pos;
-    for(const auto hit: hits){
-        pos.SetCoordinates( hit->getPosition() );
-        if ( pos.rho() > tpcROuter ) setHits.push_back(hit);
+    //Performance: loop from the end. SET hits at the end!
+    for (int i=hits.size()-1; i>=0; --i){
+        pos.SetCoordinates( hits[i]->getPosition() );
+        if ( pos.rho() > tpcROuter ) return hits[i];
     }
-    return setHits;
+    return nullptr;
 }
 
 
@@ -283,19 +295,19 @@ CalorimeterHit* SETAnalysis::getClosestHit( Cluster* cluster, XYZVectorF posTrac
 }
 
 
-CalorimeterHit* SETAnalysis::getFastestHit( Cluster* cluster ){
-    CalorimeterHit* earliestHit = nullptr;
+pair<XYZVectorF, double> SETAnalysis::getFastestHit( Cluster* cluster, double smearing ){
+    pair<XYZVectorF, double> earliestHit{};
 
-    double earliestTime = std::numeric_limits<double>::max();
+    earliestHit.second = std::numeric_limits<double>::max();
     for ( const auto hit : cluster->getCalorimeterHits() ){
         CHT hitType( hit->getType() );
         bool isECALHit = ( hitType.caloID() == CHT::ecal );
         if (! isECALHit) continue;
 
-        double timeHit = hit->getTime();
-        if( timeHit < earliestTime ){
-            earliestTime = timeHit;
-            earliestHit = hit;
+        double timeHit = CLHEP::RandGauss::shoot( hit->getTime(), smearing );
+        if( timeHit < earliestHit.second ){
+            earliestHit.first.SetCoordinates( hit->getPosition() );
+            earliestHit.second = timeHit;
         }
     }
     return earliestHit;
@@ -323,7 +335,7 @@ double SETAnalysis::getTofFrankFit( Cluster* cluster, XYZVectorF posTrackAtCalo,
             double dToLine = (pos - posTrackAtCalo).Cross(momTrackAtCalo.unit()).r();
             if (dToLine < closestDistanceToLine){
                 closestDistance = (pos - posTrackAtCalo).r();
-                closestTime = CLHEP::RandGauss::shoot(hit->getTime(), smearing);
+                closestTime = CLHEP::RandGauss::shoot( hit->getTime() , smearing );
                 closestDistanceToLine = dToLine;
             }
         }
@@ -331,7 +343,7 @@ double SETAnalysis::getTofFrankFit( Cluster* cluster, XYZVectorF posTrackAtCalo,
         d.push_back(closestDistance);
         time.push_back(closestTime);
         d_err.push_back(0.);
-        time_err.push_back(0.1);
+        time_err.push_back(0.3);
     }
     // Can't fit 0 or 1 point. Must return something meaningfull
     if ( d.size() == 0 ) return 0.;

@@ -1,31 +1,17 @@
 executable = /afs/desy.de/user/d/dudarboh/SETAnalysis/job/job.sh
-arguments = $(file) $(ProcId) $(smearing)
+arguments = $(file) $(ProcId)
 
 Requirements = OpSys == "LINUX" && Arch =="X86_64"
 request_cpus = 1
 request_memory = 2000 Mb
-request_disk = 1MB
+request_disk = 5MB
 
 initialdir = /nfs/dust/ilc/user/dudarboh/job_files/jobs
 should_transfer_files = NO
+max_retries = 5
 
 log = ../log/$(ProcId).log
 output = ../out/$(ProcId).out
 error = ../err/$(ProcId).err
 
-max_retries = 3
-
-smearing=0
-queue file from /afs/desy.de/user/d/dudarboh/SETAnalysis/job/2f_Z_hadronic_250gev.txt
-
-smearing=10
-queue file from /afs/desy.de/user/d/dudarboh/SETAnalysis/job/2f_Z_hadronic_250gev.txt
-
-smearing=30
-queue file from /afs/desy.de/user/d/dudarboh/SETAnalysis/job/2f_Z_hadronic_250gev.txt
-
-smearing=50
-queue file from /afs/desy.de/user/d/dudarboh/SETAnalysis/job/2f_Z_hadronic_250gev.txt
-
-smearing=100
 queue file from /afs/desy.de/user/d/dudarboh/SETAnalysis/job/2f_Z_hadronic_250gev.txt

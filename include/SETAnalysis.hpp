@@ -30,12 +30,12 @@ class SETAnalysis : public Processor {
 
         MCParticle* getMcMaxWeight(LCRelationNavigator pfoToMc, ReconstructedParticle* pfo);
         pair<double, double> getTpcR();
-        vector<TrackerHit*> getSetHits(Track* track, double tpcROuter);
+        TrackerHit* getSetHit(Track* track, double tpcROuter);
         double getTrackLength(Track* track, int from=TrackState::AtIP, int to=TrackState::AtCalorimeter);
         double getTrackLengthIntegral(Track* track);
 
-        CalorimeterHit* getFastestHit( Cluster* cluster);
         CalorimeterHit* getClosestHit( Cluster* cluster, XYZVectorF posTrackAtCalo);
+        pair<XYZVectorF, double> getFastestHit( Cluster* cluster, double smearing=0.);
         double getTofFrankFit( Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing=0., unsigned int nLayers=10 );
         double getTofFrankAvg( Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing=0., unsigned int nLayers=10 );
 
@@ -63,26 +63,27 @@ class SETAnalysis : public Processor {
         double _tsCaloD0;
         double _tsCaloZ0;
 
-        int _nSetHits;
-        XYZVector _setHitPos{};
-        double _setHitTime;
-        XYZVector _setPosTrue{};
-
+        bool _hasSetHit;
         int _nEcalHits;
+        XYZVector _posSetHit{};
+
         XYZVectorF _posClosest{};
-        double _tofClosest;
-        XYZVectorF _posFastest{};
-        double _tofFastest;
-        double _tofFrankFit;
-        double _tofFrankAvg;
+        XYZVectorF _posFastest[5];
 
         double _trackLengthSet;
         double _trackLengthCalo;
         double _trackLengthIntegral;
 
+        double _smearings[5] = {0., 10., 30., 50., 100.};
+        double _tofSetFront[5];
+        double _tofSetBack[5];
+        double _tofClosest[5];
+        double _tofFastest[5];
+        double _tofFrankFit[5];
+        double _tofFrankAvg[5];
+
         double _bField;
         double _tpcROuter;
-        double _smearing;
 };
 
 

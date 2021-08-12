@@ -24,9 +24,7 @@
     </processor>
 
 
-    <processor name="MySETAnalysis" type="SETAnalysis">
-        <parameter name="smearing" type="double">0</parameter>
-    </processor>
+    <processor name="MySETAnalysis" type="SETAnalysis"></processor>
 
 
 </marlin>

@@ -41,10 +41,10 @@ for i, df in zip(df_names, dfs):
              .Define("beta", beta)\
              .Histo2D(("h_all", "Method: {} {} ps; p (GeV);#beta".format(j, i), 30, 1., 10., 2000, 0.7, 1.05), "mom", "beta")
 
-        canvas.cd(1)
-        ROOT.gPad.SetLogz()
-        h_all.Draw("colz")
-        h_all.SetStats(0)
+        # canvas.cd(1)
+        # ROOT.gPad.SetLogz()
+        # h_all.Draw("colz")
+        # h_all.SetStats(0)
 
         for k, pdg in enumerate(pdgs):
             gr = ROOT.TGraphErrors()
@@ -52,11 +52,23 @@ for i, df in zip(df_names, dfs):
             gr.SetMarkerColor(k+1)
             gr.SetLineColor(k+1)
 
+            if pdg == 211:
+                 bins = [30, 1., 10., 1000, 0.9, 1.05]
+            elif pdg == 321:
+                bins = [30, 1., 10., 1000, 0.7, 1.05]
+            elif pdg == 2212:
+                bins = [30, 1., 10., 1000, 0.7, 1.05]
+
             h = df.Filter("n_ecal_hits > 0 && abs(pos_fastest.z()) < 2000.")\
                  .Filter("abs(pdg) == {}".format(pdg))\
                  .Define("mom", "ts_calo_mom.r()")\
                  .Define("beta", beta)\
-                 .Histo2D(("h", "title;mom;beta", 30, 1., 10., 1000, 0.7, 1.05), "mom", "beta")
+                 .Histo2D(("h", "Method: {} {} ps; p (GeV);#beta".format(j, i), bins[0], bins[1], bins[2], bins[3], bins[4], bins[5]), "mom", "beta")
+
+            canvas.cd(1)
+            h.Draw("colz")
+            h.SetStats(0)
+
 
             h.FitSlicesY()
             h_1 = ROOT.gROOT.FindObject("h_1")
@@ -73,9 +85,9 @@ for i, df in zip(df_names, dfs):
             gr.GetXaxis().SetRangeUser(1., 10.)
             gr.GetYaxis().SetRangeUser(0.7, 1.05)
 
-        canvas.Update()
-        canvas.Print("method_{}_{}_ps.png".format(j, i))
-        input("wait")
+            canvas.Update()
+        # canvas.Print("method_{}_{}_ps.png".format(j, i))
+            input("wait")
         # sep_power = abs(m1-m2) / np.sqrt( (std1*std1 + std2*std2)/2. )
 
 
