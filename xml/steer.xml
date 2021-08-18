@@ -24,7 +24,10 @@
     </processor>
 
 
-    <processor name="MySETAnalysis" type="SETAnalysis"></processor>
+    <processor name="MySETAnalysis" type="SETAnalysis">
+        <!-- verbosity level of this processor ("DEBUG0-4,MESSAGE0-4,WARNING0-4,ERROR0-4,SILENT") -->
+        <parameter name="Verbosity" type="string">MESSAGE</parameter>
 
+    </processor>
 
 </marlin>

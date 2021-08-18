@@ -15,6 +15,10 @@
 #include "EVENT/SimCalorimeterHit.h"
 #include "UTIL/LCRelationNavigator.h"
 
+namespace MarlinTrk{
+    class IMarlinTrkSystem;
+}
+
 using marlin::Processor;
 using std::string, std::cout, std::endl, std::unique_ptr, std::vector, std::pair;
 using ROOT::Math::XYZVectorF;
@@ -32,7 +36,8 @@ class SETAnalysis : public Processor {
         pair<double, double> getTpcR();
         TrackerHit* getSetHit(Track* track, double tpcROuter);
         double getTrackLength(Track* track, int from=TrackState::AtIP, int to=TrackState::AtCalorimeter);
-        double getTrackLengthIntegral(Track* track);
+        double getTrackLengthRefit(Track* track);
+        double getTrackLengthAdrian(Track* track);
 
         CalorimeterHit* getClosestHit( Cluster* cluster, XYZVectorF posTrackAtCalo);
         pair<XYZVectorF, double> getFastestHit( Cluster* cluster, double smearing=0.);
@@ -72,7 +77,8 @@ class SETAnalysis : public Processor {
 
         double _trackLengthSet;
         double _trackLengthCalo;
-        double _trackLengthIntegral;
+        double _trackLengthRefit;
+        double _trackLengthAdrian;
 
         double _smearings[5] = {0., 10., 30., 50., 100.};
         double _tofSetFront[5];
@@ -82,6 +88,7 @@ class SETAnalysis : public Processor {
         double _tofFrankFit[5];
         double _tofFrankAvg[5];
 
+        MarlinTrk::IMarlinTrkSystem* _trkSystem;
         double _bField;
         double _tpcROuter;
 };

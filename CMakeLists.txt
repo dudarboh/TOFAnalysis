@@ -37,7 +37,9 @@ include(ilcsoft_default_settings)
 
 find_package(Marlin 1.15 REQUIRED)
 find_package(MarlinUtil 1.4 REQUIRED)
-FOREACH(pkg Marlin MarlinUtil)
+find_package(MarlinTrk REQUIRED)
+
+FOREACH(pkg Marlin MarlinUtil MarlinTrk)
     include_directories(${${pkg}_INCLUDE_DIRS})
     target_link_libraries(${PROJECT_NAME} ${${pkg}_LIBRARIES})
 ENDFOREACH()

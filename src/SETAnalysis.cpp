@@ -9,6 +9,7 @@
 #include "DD4hep/DetectorSelector.h"
 #include "DD4hep/DD4hepUnits.h"
 #include "DDRec/DetectorData.h"
+#include "DDRec/Vector3D.h"
 
 #include "marlinutil/GeometryUtil.h"
 #include "marlinutil/CalorimeterHitType.h"
@@ -21,9 +22,22 @@
 #include "TF1.h"
 #include "TString.h"
 
+#include "MarlinTrk/Factory.h"
+#include "MarlinTrk/IMarlinTrack.h"
+#include "MarlinTrk/HelixTrack.h"
+#include "MarlinTrk/MarlinTrkUtils.h"
+
+#include <IMPL/TrackStateImpl.h>
+#include <IMPL/TrackImpl.h>
+
+#include "streamlog/streamlog.h"
+
+
 using dd4hep::Detector;
 using dd4hep::DetElement;
 using dd4hep::rec::FixedPadSizeTPCData;
+
+using namespace MarlinTrk;
 
 SETAnalysis aSETAnalysis;
 
@@ -65,7 +79,8 @@ void SETAnalysis::init(){
 
     _tree->Branch("track_length_set", &_trackLengthSet);
     _tree->Branch("track_length_calo", &_trackLengthCalo);
-    // _tree->Branch("track_length_integral", &_trackLengthIntegral);
+    _tree->Branch("track_length_refit", &_trackLengthRefit);
+    _tree->Branch("track_length_adrian", &_trackLengthAdrian);
 
     for(unsigned int i=0; i < std::size(_smearings); ++i ){
         _tree->Branch(Form("pos_fastest_%d", int(_smearings[i]) ), &( _posFastest[i] ) );
@@ -77,18 +92,27 @@ void SETAnalysis::init(){
         _tree->Branch(Form("tof_frank_avg_%d", int(_smearings[i]) ), &( _tofFrankAvg[i] ) );
     }
 
-
     _bField = MarlinUtil::getBzAtOrigin();
     _tpcROuter = getTpcR().second;
+    _trkSystem = Factory::createMarlinTrkSystem( "DDKalTest", nullptr, "" ) ;
+
+    _trkSystem->setOption( IMarlinTrkSystem::CFG::useQMS, true);
+    _trkSystem->setOption( IMarlinTrkSystem::CFG::usedEdx, true);
+    _trkSystem->setOption( IMarlinTrkSystem::CFG::useSmoothing, true);
+    _trkSystem->init() ;
+
 }
 
 
 void SETAnalysis::processEvent(LCEvent* evt){
-    //profiler notes:
-    // LCRelationNavigators - are heavy. Remove if possible
-    //
     ++_nEvent;
     cout<<"****** Event: "<<_nEvent<<endl;
+
+    // set the correct configuration for the tracking system for this event
+    TrkSysConfig< IMarlinTrkSystem::CFG::useQMS> mson( _trkSystem, true );
+    TrkSysConfig< IMarlinTrkSystem::CFG::usedEdx> elosson( _trkSystem, true);
+    TrkSysConfig< IMarlinTrkSystem::CFG::useSmoothing> smoothon( _trkSystem, true);
+
     LCCollection* pfos = evt->getCollection("PandoraPFOs");
     LCRelationNavigator pfoToMc( evt->getCollection("RecoMCTruthLink") );
 
@@ -151,8 +175,11 @@ void SETAnalysis::processEvent(LCEvent* evt){
         ///////////////////////WRITE TRACK LENGTHS/////////////////////
         _trackLengthSet = getTrackLength(track, TrackState::AtIP, TrackState::AtLastHit);
         _trackLengthCalo = getTrackLength(track, TrackState::AtIP, TrackState::AtCalorimeter);
-        // _trackLengthIntegral = getTrackLengthIntegral(track);
-
+        _trackLengthAdrian = getTrackLengthAdrian(track);
+        _trackLengthRefit = getTrackLengthRefit(track);
+        cout<<"Calo track length: "<<_trackLengthCalo<<endl;
+        cout<<"Adrian track length: "<<_trackLengthAdrian<<endl;
+        cout<<"Refit track length: "<<_trackLengthRefit<<endl;
 
         SimTrackerHit* setSimHitFront = dynamic_cast <SimTrackerHit*> (setSimHits.at(0) );
         SimTrackerHit* setSimHitBack = dynamic_cast <SimTrackerHit*> (setSimHits.at(1) );
@@ -230,49 +257,145 @@ double SETAnalysis::getTrackLength(Track* track, int from, int to){
 }
 
 
-double SETAnalysis::getTrackLengthIntegral(Track* track){
+double SETAnalysis::getTrackLengthAdrian(Track* track){
+    // version of Mitaroff arxiv:2107.02031v1
+    // approach 1, using only the track states
+    // equation 20 with phi*=phi
     double trackLength = 0.;
 
     //*** track length from IP state to 1st tracker hit state***
     const TrackState* tsIp = track->getTrackState(TrackState::AtIP);
-    double phiIP = tsIp->getPhi();
-    double omegaIP = tsIp->getOmega();
-    double tanLIP = tsIp->getTanLambda();
-    const TrackState* tsFirst = track->getTrackState(TrackState::AtFirstHit);
-    double phiFirst = tsFirst->getPhi();
-    trackLength += std::abs( (phiIP - phiFirst)/omegaIP )*std::sqrt(1. + tanLIP*tanLIP);
+    double phiIp = tsIp->getPhi();
+    double d0Ip = tsIp->getD0();
+    double z0Ip = tsIp->getZ0();
+    double omegaIp = tsIp->getOmega();
+    double tanLIp = tsIp->getTanLambda();
+    HelixClass helixIp;
+    helixIp.Initialize_Canonical(phiIp, d0Ip, z0Ip, omegaIp, tanLIp, _bField);
+    double qIp = helixIp.getCharge();
+    double rhIp = helixIp.getRadius();
+    dd4hep::rec::Vector3D pIp= helixIp.getMomentum();
+    double khIp = 1./rhIp;
 
-    //*** in the tracker region sum hit-by-hit assuming straight line path between hits***
-    vector <TrackerHit*> trackHits = track->getTrackerHits();
+    XYZVector posIp = XYZVector(tsIp->getReferencePoint()[0], tsIp->getReferencePoint()[1], tsIp->getReferencePoint()[2]);
+    // streamlog_out(DEBUG) << "AtIP q="<<qIp<<" Bz="<<B<<" Ku="<<CLHEP::c_light<<" z0="<<z0Ip<<" p="<<pIp.r()<<" rh="<<rhIp<<" posR:"<<posIp.r()<<std::endl;
 
-    auto sortByR = [](TrackerHit* a, TrackerHit* b) {
-        XYZVector posA, posB;
-        posA.SetCoordinates( a->getPosition() );
-        posB.SetCoordinates( b->getPosition() );
+    std::vector <TrackState*> trackSt = track->getTrackStates();
+    double phi[1000], k[1000], z[1000];
+
+    phi[0]=phiIp;
+    k[0]=khIp;
+    z[0]=tsIp->getReferencePoint()[2];
+
+    auto sortByR = [&](TrackState* ts_a, TrackState* ts_b) {
+        XYZVector posA = XYZVector(ts_a->getReferencePoint()[0], ts_a->getReferencePoint()[1], ts_a->getReferencePoint()[2]);
+        XYZVector posB = XYZVector(ts_b->getReferencePoint()[0], ts_b->getReferencePoint()[1], ts_b->getReferencePoint()[2]);
         return posA.r() < posB.r();
     };
-    sort(trackHits.begin(), trackHits.end(), sortByR);
+    sort(trackSt.begin(), trackSt.end(), sortByR);
 
-    for (size_t j=1; j < trackHits.size(); ++j){
-        XYZVector pos1, pos2;
-        pos1.SetCoordinates( trackHits[j-1]->getPosition() );
-        pos2.SetCoordinates( trackHits[j]->getPosition() );
-        trackLength += (pos2-pos1).r();
+    for (size_t j=1; j < trackSt.size(); ++j){
+        HelixClass helix;
+        double phi_helix = trackSt.at(j)->getPhi();
+        double d0 = trackSt.at(j)->getD0();
+        double z0 = trackSt.at(j)->getZ0();
+        double omega = trackSt.at(j)->getOmega();
+        double tanL = trackSt.at(j)->getTanLambda();
+        helix.Initialize_Canonical(phi_helix, d0, z0, omega, tanL, _bField);
+
+        double q = helix.getCharge();
+        double rh = helix.getRadius();
+        dd4hep::rec::Vector3D p = helix.getMomentum();
+        double kh = 1./rh;
+        XYZVector pos = XYZVector(trackSt.at(j)->getReferencePoint()[0], trackSt.at(j)->getReferencePoint()[1], trackSt.at(j)->getReferencePoint()[2]);
+
+        // streamlog_out(DEBUG) << "TrackState at:"<<trackSt.at(j)->getLocation()<<" q:"<<q<<" Bz="<<B<<" Ku="<<CLHEP::c_light<<" z0="<<z0<<" p="<<p.r()<<" rh="<<rh<<" posR="<<pos.r()<<std::endl;
+        phi[j]=phi_helix;
+        k[j]=kh;
+        z[j]=trackSt.at(j)->getReferencePoint()[2];
+
+        trackLength += sqrt ( pow( (phi[j]-phi[j-1])/k[j-1],2) + pow(z[j]-z[j-1],2) ) ;
     }
 
-
-    // track length from last tracker hit to the ECAL surface
-    const TrackState* tsLast = track->getTrackState(TrackState::AtLastHit);
-    double phiLast = tsLast->getPhi();
-    const TrackState* tsCalo = track->getTrackState(TrackState::AtCalorimeter);
+    const TrackState* tsCalo= track->getTrackState(TrackState::AtCalorimeter);
     double phiCalo = tsCalo->getPhi();
     double omegaCalo = tsCalo->getOmega();
     double tanLCalo = tsCalo->getTanLambda();
 
-    trackLength += std::abs( (phiLast - phiCalo)/omegaCalo )*std::sqrt(1. + tanLCalo*tanLCalo);
+    // streamlog_out(DEBUG)<< "Simplest one:"<<((phiIp - phiCalo)/omegaCalo)*sqrt(1. + tanLCalo*tanLCalo) << " Mitaroff: "<<trackLength<<std::endl;
+
     return trackLength;
 }
 
+
+double SETAnalysis::getTrackLengthRefit(Track* track){
+
+    vector <TrackerHit*> trackHits = track->getTrackerHits();
+
+    auto sortByRho = [](TrackerHit* a, TrackerHit* b) {
+        XYZVector posA, posB;
+        posA.SetCoordinates( a->getPosition() );
+        posB.SetCoordinates( b->getPosition() );
+        return posA.rho() < posB.rho();
+    };
+    sort(trackHits.begin(), trackHits.end(), sortByRho);
+
+    // setup initial dummy covariance matrix
+    vector<float> covMatrix(15);
+    // initialize variances
+    covMatrix[0]  = ( 1e+06 ); //sigma_d0^2
+    covMatrix[2]  = ( 100. ); //sigma_phi0^2
+    covMatrix[5]  = ( 0.00001 ); //sigma_omega^2
+    covMatrix[9]  = ( 1e+06 ); //sigma_z0^2
+    covMatrix[14] = ( 100. ); //sigma_tanl^2
+
+    double maxChi2PerHit = 100.;
+    IMarlinTrack* marlinTrk = _trkSystem->createTrack();
+    TrackImpl refittedTrack;
+
+
+    //Unfortunately this option doesn't work!!!
+    // createFinalisedLCIOTrack(marlinTrk, trackHits, &refittedTrack, IMarlinTrack::backward, 0 , _bField, maxChi2PerHit);
+    //Need to initialize manually at the last hit
+    TrackState* tsInit = const_cast<EVENT::TrackState* > ( track->getTrackState( TrackState::AtLastHit ) ) ;
+    TrackStateImpl preFit( *tsInit ) ;
+    preFit.setCovMatrix( covMatrix )  ;
+    createFinalisedLCIOTrack(marlinTrk, trackHits, &refittedTrack, IMarlinTrack::backward, &preFit , _bField, maxChi2PerHit);
+
+    vector<pair<TrackerHit*, double> > hitsInFit;
+    vector<pair<TrackerHit*, double> > outliers;
+
+    marlinTrk->getHitsInFit(hitsInFit);
+    marlinTrk->getOutliers(outliers);
+    if(outliers.size() == 0) cout<< "No outliers... Good"<<endl;
+
+    double dummyChi2;
+    int dummyNdf;
+    TrackStateImpl* ts1 = new TrackStateImpl();
+    // ts1 = track->getTrackState(TrackState::AtIP);
+    TrackerHit* firstHit = hitsInFit.back().first;
+    marlinTrk->propagate(Vector3D(), firstHit, *ts1, dummyChi2, dummyNdf);
+    double trackLength = 0.;
+    for(int i=0; i < trackHits.size() ; i+=10 ){
+        TrackStateImpl* ts2 = new TrackStateImpl();
+        marlinTrk->getTrackState(trackHits[i], *ts2, dummyChi2, dummyNdf);
+
+        double phi = ts1->getPhi();
+        double phi2 = ts2->getPhi();
+        double omega = ts1->getOmega();
+        double tanL = ts1->getTanLambda();
+        trackLength += std::abs( (phi2 - phi)/omega )*std::sqrt(1. + tanL*tanL);
+        ts1 = ts2;
+    }
+
+    double phi = ts1->getPhi();
+    double phi2 = track->getTrackState(TrackState::AtCalorimeter)->getPhi();
+    double omega = ts1->getOmega();
+    double tanL = ts1->getTanLambda();
+    trackLength += std::abs( (phi2 - phi)/omega )* sqrt(1. + tanL*tanL);
+
+    return trackLength;
+}
 
 CalorimeterHit* SETAnalysis::getClosestHit( Cluster* cluster, XYZVectorF posTrackAtCalo){
     CalorimeterHit* closestHit = nullptr;
