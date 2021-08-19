@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <numeric>
 
 #include "marlin/Processor.h"
 #include "TFile.h"

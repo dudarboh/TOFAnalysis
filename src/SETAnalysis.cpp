@@ -32,6 +32,9 @@
 
 #include "streamlog/streamlog.h"
 
+#include <UTIL/ILDConf.h>
+#include <UTIL/BitSet32.h>
+
 
 using dd4hep::Detector;
 using dd4hep::DetElement;
@@ -329,38 +332,36 @@ double SETAnalysis::getTrackLengthAdrian(Track* track){
 
 
 double SETAnalysis::getTrackLengthRefit(Track* track){
+    cout<<"_________________________________________________________________________________________"<<endl;
+    cout<<"_________________________________________________________________________________________"<<endl;
+    cout<<"_________________________________________________________________________________________"<<endl;
+    std::vector <TrackerHit*> trackHits = track->getTrackerHits();
 
-    vector <TrackerHit*> trackHits = track->getTrackerHits();
-
-    auto sortByRho = [](TrackerHit* a, TrackerHit* b) {
+    auto sortByR = [](TrackerHit* a, TrackerHit* b) {
         XYZVector posA, posB;
         posA.SetCoordinates( a->getPosition() );
         posB.SetCoordinates( b->getPosition() );
-        return posA.rho() < posB.rho();
+        return posA.r() < posB.r();
     };
-    sort(trackHits.begin(), trackHits.end(), sortByRho);
+    std::sort(trackHits.begin(), trackHits.end(), sortByR);
 
     // setup initial dummy covariance matrix
     vector<float> covMatrix(15);
     // initialize variances
-    covMatrix[0]  = ( 1e+06 ); //sigma_d0^2
-    covMatrix[2]  = ( 100. ); //sigma_phi0^2
-    covMatrix[5]  = ( 0.00001 ); //sigma_omega^2
-    covMatrix[9]  = ( 1e+06 ); //sigma_z0^2
-    covMatrix[14] = ( 100. ); //sigma_tanl^2
-
+    covMatrix[0]  = 1e+06; //sigma_d0^2
+    covMatrix[2]  = 100.; //sigma_phi0^2
+    covMatrix[5]  = 0.00001; //sigma_omega^2
+    covMatrix[9]  = 1e+06; //sigma_z0^2
+    covMatrix[14] = 100.; //sigma_tanl^2
     double maxChi2PerHit = 100.;
     IMarlinTrack* marlinTrk = _trkSystem->createTrack();
     TrackImpl refittedTrack;
 
-
-    //Unfortunately this option doesn't work!!!
-    // createFinalisedLCIOTrack(marlinTrk, trackHits, &refittedTrack, IMarlinTrack::backward, 0 , _bField, maxChi2PerHit);
     //Need to initialize manually at the last hit
-    TrackState* tsInit = const_cast<EVENT::TrackState* > ( track->getTrackState( TrackState::AtLastHit ) ) ;
-    TrackStateImpl preFit( *tsInit ) ;
-    preFit.setCovMatrix( covMatrix )  ;
-    createFinalisedLCIOTrack(marlinTrk, trackHits, &refittedTrack, IMarlinTrack::backward, &preFit , _bField, maxChi2PerHit);
+    TrackStateImpl preFit = *(track->getTrackState( TrackState::AtLastHit ));
+    preFit.setCovMatrix( covMatrix );
+    int status = createFinalisedLCIOTrack(marlinTrk, trackHits, &refittedTrack, IMarlinTrack::backward, &preFit , _bField, maxChi2PerHit);
+    cout<<"Fit status: "<<status<<endl;
 
     vector<pair<TrackerHit*, double> > hitsInFit;
     vector<pair<TrackerHit*, double> > outliers;
@@ -369,32 +370,86 @@ double SETAnalysis::getTrackLengthRefit(Track* track){
     marlinTrk->getOutliers(outliers);
     if(outliers.size() == 0) cout<< "No outliers... Good"<<endl;
 
-    double dummyChi2;
-    int dummyNdf;
-    TrackStateImpl* ts1 = new TrackStateImpl();
-    // ts1 = track->getTrackState(TrackState::AtIP);
-    TrackerHit* firstHit = hitsInFit.back().first;
-    marlinTrk->propagate(Vector3D(), firstHit, *ts1, dummyChi2, dummyNdf);
-    double trackLength = 0.;
-    for(int i=0; i < trackHits.size() ; i+=10 ){
-        TrackStateImpl* ts2 = new TrackStateImpl();
-        marlinTrk->getTrackState(trackHits[i], *ts2, dummyChi2, dummyNdf);
+    double chi2Test, phiTest, d0Test, z0Test, omegaTest, tanLTest, trackLengthTest;
+    int ndfTest;
 
-        double phi = ts1->getPhi();
-        double phi2 = ts2->getPhi();
-        double omega = ts1->getOmega();
-        double tanL = ts1->getTanLambda();
-        trackLength += std::abs( (phi2 - phi)/omega )*std::sqrt(1. + tanL*tanL);
-        ts1 = ts2;
+    const TrackState* tsIpTest = track->getTrackState(TrackState::AtIP);
+    phiTest = tsIpTest->getPhi();
+    d0Test = tsIpTest->getD0();
+    z0Test = tsIpTest->getZ0();
+    omegaTest = tsIpTest->getOmega();
+    tanLTest = tsIpTest->getTanLambda();
+    cout<<"i="<<"atIP"<<"   "<<"phi="<<phiTest<<"    "<<"d0="<<d0Test<<"    "<<"z0="<<z0Test<<"    "<<"omega="<<omegaTest<<"    "<<"tanL="<<tanLTest<<endl;
+
+    // + 2 for IP and ECAL TrackStates extrapolations
+    //TODO: add ECAL point
+    const int nStates = trackHits.size() + 2;
+    double chi2[nStates], phi[nStates], d0[nStates], z0[nStates], omega[nStates], tanL[nStates], trackLength[nStates - 1], mom[nStates];
+    int ndf[nStates];
+
+    TrackStateImpl* tsIp = new TrackStateImpl();
+    TrackerHit* firstHit = hitsInFit.back().first;
+    cout<<"First fit hit with least r="<<(firstHit == trackHits[0])<<endl;
+    marlinTrk->propagate(Vector3D(), firstHit, *tsIp, chi2[0], ndf[0]);
+    phi[0] = tsIp->getPhi();
+    d0[0] = tsIp->getD0();
+    z0[0] = tsIp->getZ0();
+    omega[0] = tsIp->getOmega();
+    tanL[0] = tsIp->getTanLambda();
+    HelixClass helix0;
+    helix0.Initialize_Canonical(phi[0], d0[0], z0[0], omega[0], tanL[0], _bField);
+    mom[0] = dd4hep::rec::Vector3D(helix0.getMomentum()).r();
+    cout<<"i="<<0<<"   "<<"phi="<<phi[0]<<"    "<<"d0="<<d0[0]<<"    "<<"z0="<<z0[0]<<"    "<<"omega="<<omega[0]<<"    "<<"tanL="<<tanL[0]<<"    "<<"mom="<<mom[0]<<endl;
+    cout<<"chi2="<<chi2[0]<<"   "<<"ndf="<<ndf[0]<<endl;
+    cout<<"nHits="<<trackHits.size()<<endl;
+    for(int i=1; i < trackHits.size() + 1; ++i ){
+        TrackStateImpl* ts = new TrackStateImpl();
+
+        bool isSetHit = UTIL::BitSet32( trackHits[i-1]->getType() )[ UTIL::ILDTrkHitTypeBit::COMPOSITE_SPACEPOINT ];
+        if (isSetHit){
+            Vector3D hitPos( trackHits[i-1]->getPosition() );
+            marlinTrk->propagate(hitPos, trackHits[i-2], *ts, chi2[i], ndf[i]);
+        }
+        else{
+            marlinTrk->getTrackState(trackHits[i-1], *ts, chi2[i], ndf[i]);
+        }
+
+        phi[i] = ts->getPhi();
+        d0[i] = ts->getD0();
+        z0[i] = ts->getZ0();
+        omega[i] = ts->getOmega();
+        tanL[i] = ts->getTanLambda();
+        trackLength[i-1] = std::abs( (phi[i] - phi[i-1])/omega[i-1] )*std::sqrt(1. + tanL[i-1]*tanL[i-1]);
+        HelixClass helix;
+        helix.Initialize_Canonical(phi[i], d0[i], z0[i], omega[i], tanL[i], _bField);
+        mom[i] = dd4hep::rec::Vector3D( helix.getMomentum() ).r() ;
+        if ( trackLength[i-1] > 20. ||omega[i] == 0 || (i == trackHits.size() -1)){
+            if (i != 1) cout<<"i="<<i-1<<"   "<<"phi="<<phi[i-1]<<"    "<<"d0="<<d0[i-1]<<"    "<<"z0="<<z0[i-1]<<"    "<<"omega="<<omega[i-1]<<"    "<<"tanL="<<tanL[i-1]<<"    "<<"mom="<<mom[i-1]<<endl;
+            cout<<"i="<<i<<"   "<<"phi="<<phi[i]<<"    "<<"d0="<<d0[i]<<"    "<<"z0="<<z0[i]<<"    "<<"omega="<<omega[i]<<"    "<<"tanL="<<tanL[i]<<"    "<<"mom="<<mom[i]<<endl;
+            cout<<"Track length="<<trackLength[i-1]<<endl;
+            cout<<"****************************"<<endl;
+        }
+        delete ts;
     }
 
-    double phi = ts1->getPhi();
-    double phi2 = track->getTrackState(TrackState::AtCalorimeter)->getPhi();
-    double omega = ts1->getOmega();
-    double tanL = ts1->getTanLambda();
-    trackLength += std::abs( (phi2 - phi)/omega )* sqrt(1. + tanL*tanL);
+    const TrackState* tsEcal = track->getTrackState(TrackState::AtCalorimeter);
+    phi[nStates-1] = tsEcal->getPhi();
+    d0[nStates-1] = tsEcal->getD0();
+    z0[nStates-1] = tsEcal->getZ0();
+    omega[nStates-1] = tsEcal->getOmega();
+    tanL[nStates-1] = tsEcal->getTanLambda();
+    trackLength[nStates-2] = std::abs( (phi[nStates-1] - phi[nStates-2])/omega[nStates-2] )*std::sqrt(1. + tanL[nStates-2]*tanL[nStates-2]);
+    HelixClass helixEcal;
+    helixEcal.Initialize_Canonical(phi[nStates-1], d0[nStates-1], z0[nStates-1], omega[nStates-1], tanL[nStates-1], _bField);
+    mom[nStates-1] = dd4hep::rec::Vector3D( helixEcal.getMomentum() ).r() ;
 
-    return trackLength;
+    cout<<"i=preAtEcal="<<nStates-2<<"   "<<"phi="<<phi[nStates-2]<<"    "<<"d0="<<d0[nStates-2]<<"    "<<"z0="<<z0[nStates-2]<<"    "<<"omega="<<omega[nStates-2]<<"    "<<"tanL="<<tanL[nStates-2]<<"    "<<"mom="<<mom[nStates-2]<<endl;
+    cout<<"i=atEcal"<<"   "<<"phi="<<phi[nStates-1]<<"    "<<"d0="<<d0[nStates-1]<<"    "<<"z0="<<z0[nStates-1]<<"    "<<"omega="<<omega[nStates-1]<<"    "<<"tanL="<<tanL[nStates-1]<<"    "<<"mom="<<mom[nStates-1]<<endl;
+    cout<<"Track length="<<trackLength[nStates-2]<<endl;
+    cout<<"****************************"<<endl;
+
+
+    return std::accumulate(trackLength, trackLength + nStates - 1, 0.);
 }
 
 CalorimeterHit* SETAnalysis::getClosestHit( Cluster* cluster, XYZVectorF posTrackAtCalo){
