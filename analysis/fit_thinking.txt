@@ -1,0 +1,73 @@
+***********************MARLIN TRK PROCSESSORS
+//initialize tracking system
+_trksystem =  MarlinTrk::Factory::createMarlinTrkSystem( "DDKalTest" , 0 , "" ) ;
+_trksystem->setOption( IMarlinTrkSystem::CFG::useQMS,        true ) ;
+_trksystem->setOption( IMarlinTrkSystem::CFG::usedEdx,       true) ;
+_trksystem->setOption( IMarlinTrkSystem::CFG::useSmoothing,  true) ;
+_trksystem->init() ;
+
+//every event createTrack
+MarlinTrk::IMarlinTrack* marlinTrk = _trksystem->createTrack(); // MarlinDDKalTestTrack
+TrackImpl* track = new TrackImpl ;
+
+
+
+
+
+void FullLDCTracking_MarlinTrk::AddTrackColToEvt(LCEvent * evt, TrackExtendedVec & trkVec, trkColName)
+    // Create hit list from tracks to refit
+    // Sort hits in Rho ---?why rho?mandatory?---
+    //create dummy track for the refittedTrack
+    // define default cov matrix for ts_initial
+    // Define prefit ts atLastHit
+    // create marlinTrk - interface to Kalman filter
+MarlinTrk::createFinalisedLCIOTrack(marlinTrk, hit_list, track, IMarlinTrack::backward, &ts_initial, _bField, _maxChi2PerHit);
+    // Does almost nothing.. Just calls createFit(), then finaliseLcioTrack()
+    createFit(hit_list, marlinTrk, pre_fit, bfield_z, fit_direction, maxChi2Increment);
+        // Hits in the passed argument already are in increasing rho order (from FitProcessor! No check!)
+        // Add hits to the MarlinTrk (if composite, add all strips) so fitter can fit them.
+        // Hits might be dropped if no MeasLayer is found for the TrackerHit
+
+        marlinTrk->initialise( *pre_fit, bfield_z, fit_direction ) ;
+            //checks if at least 3 hits passed
+            //establishes hit order. i1 = last hit idx (max rho), i2 - mid, i3 [0] (min rho)
+            //use pre_fit track state to create initial helix. --- what about helix from 1D points??
+
+        marlinTrk->fit(maxChi2Increment) ;
+            //loops over _kal_hits in fit_direction calling addAndFit. If it returns false add to _hit_chi2_values
+            //So hits are added 1 by 1 as they are fitted
+
+            addAndFit( kalhit, chi2increment, site, maxChi2Increment );
+            //here is Kalman filter magic happens.
+            //Create remporary site, then filter for maxChi2Increment
+            // save the site if hit passes
+
+
+    finaliseLCIOTrack(marlinTrk, track, hit_list, fit_direction );
+    // MatinTrkUtils: comment on line 465 --- ???????
+    // loops over argument track hits (ordered in rho)
+
+
+marlinTrk->getHitsInFit(hits_in_fit);
+// this copies _hit_chi2_values (which are in the fit order)
+MarlinTrk::addHitNumbersToTrack(Track, all_hits, true, cellID_encoder);
+marlinTrk->getOutliers(outliers);
+MarlinTrk::addHitNumbersToTrack(Track, all_hits, false, cellID_encoder);
+
+**************HOW TO GET TRACK STATES
+IMPL::TrackStateImpl* trkStateIP = new IMPL::TrackStateImpl() ;
+marlintrk->propagate(Vector3D(), firstHit, *trkStateIP, chi2, ndf )
+
+IMPL::TrackStateImpl* trkStateAtFirstHit = new IMPL::TrackStateImpl() ;
+EVENT::TrackerHit* firstHit = ( fit_direction == IMarlinTrack::backward ? hits_in_fit.back().first : hits_in_fit.front().first ) ;
+return_error = marlintrk->getTrackState(firstHit, *trkStateAtFirstHit, chi2, ndf ) ;
+
+IMPL::TrackStateImpl* trkStateAtLastHit = new IMPL::TrackStateImpl() ;
+EVENT::TrackerHit* lastHit =  ( fit_direction == IMarlinTrack::backward ? hits_in_fit.front().first :  hits_in_fit.back().first ) ;
+Vector3D last_hit_pos(lastHit->getPosition());
+return_error = marlintrk->propagate(last_hit_pos, last_constrained_hit, *trkStateAtLastHit, chi2, ndf);
+
+
+IMPL::TrackStateImpl* trkStateCalo = new IMPL::TrackStateImpl() ;
+return_error = createTrackStateAtCaloFace(marlintrk, trkStateCalo, last_constrained_hit, tanL_is_positive);
+return_error = marlintrk->propagateToLayer(encoder.lowWord(), last_constrained_hit, *trkStateCalo, -inf, 0, 0, IMarlinTrack::modeForward ) ;

@@ -89,6 +89,8 @@ class SETAnalysis : public Processor {
         double _tofFrankFit[5];
         double _tofFrankAvg[5];
 
+        // MarlinTrk v02-00 release notes
+        // USERS SHOULD NO LONGER DELETE THE IMarlinTrkSystem POINTER IN THEIR CODE (Marlin processor)
         MarlinTrk::IMarlinTrkSystem* _trkSystem;
         double _bField;
         double _tpcROuter;
