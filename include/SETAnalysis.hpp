@@ -36,8 +36,12 @@ class SETAnalysis : public Processor {
         MCParticle* getMcMaxWeight(LCRelationNavigator pfoToMc, ReconstructedParticle* pfo);
         pair<double, double> getTpcR();
         TrackerHit* getSetHit(Track* track, double tpcROuter);
-        double getTrackLength(Track* track, int from=TrackState::AtIP, int to=TrackState::AtCalorimeter);
-        std::pair<double, double> getTrackLengthRefit(Track* track);
+
+        double estimateTrackLengthTanL(double phi1, double phi2, double omega, double tanL);
+        double estimateTrackLengthZ(double phi1, double phi2, double omega, double z1, double z2);
+
+        double getTrackLength(Track* track, bool extrapolateToIp=true, bool extrapolateToEcal=true, std::string method="dz");
+        double getMom2Harmonic(Track* track, bool extrapolateToIp, bool extrapolateToEcal, std::string method);
 
         CalorimeterHit* getClosestHit( Cluster* cluster, XYZVectorF posTrackAtCalo);
         pair<XYZVectorF, double> getFastestHit( Cluster* cluster, double smearing=0.);
@@ -52,21 +56,16 @@ class SETAnalysis : public Processor {
 
         int _nEvent;
         int _pdg;
-        XYZVectorF _tsLastPos{};
-        XYZVectorF _tsLastMom{};
-        double _tsLastOmega;
-        double _tsLastTanL;
-        double _tsLastPhi;
-        double _tsLastD0;
-        double _tsLastZ0;
 
-        XYZVectorF _tsCaloPos{};
-        XYZVectorF _tsCaloMom{};
-        double _tsCaloOmega;
-        double _tsCaloTanL;
-        double _tsCaloPhi;
-        double _tsCaloD0;
-        double _tsCaloZ0;
+        double dummy = std::numeric_limits<double>::min();
+        XYZVectorF dummyVec = XYZVectorF(dummy, dummy, dummy);
+        std::map< std::string, XYZVectorF > _tsPos = { {"ip", dummyVec}, {"first", dummyVec}, {"last", dummyVec}, {"ecal", dummyVec} };
+        std::map< std::string, XYZVectorF > _tsMom = { {"ip", dummyVec}, {"first", dummyVec}, {"last", dummyVec}, {"ecal", dummyVec} };
+        std::map< std::string, double > _tsOmega = { {"ip", dummy}, {"first", dummy}, {"last", dummy}, {"ecal", dummy} };
+        std::map< std::string, double > _tsTanL = { {"ip", dummy}, {"first", dummy}, {"last", dummy}, {"ecal", dummy} };
+        std::map< std::string, double > _tsPhi = { {"ip", dummy}, {"first", dummy}, {"last", dummy}, {"ecal", dummy} };
+        std::map< std::string, double > _tsD0 = { {"ip", dummy}, {"first", dummy}, {"last", dummy}, {"ecal", dummy} };
+        std::map< std::string, double > _tsZ0 = { {"ip", dummy}, {"first", dummy}, {"last", dummy}, {"ecal", dummy} };
 
         bool _hasSetHit;
         int _nEcalHits;
@@ -75,10 +74,9 @@ class SETAnalysis : public Processor {
         XYZVectorF _posClosest{};
         XYZVectorF _posFastest[5];
 
-        double _trackLengthSet;
-        double _trackLengthCalo;
-        double _trackLengthRefit;
-        double _trackLengthAdrian;
+        std::map< std::string, double > _mom = { {"sqrHmTanL", 0.}, {"sqrHmTanLSet", 0.}, {"sqrHmDz", 0.}, {"sqrHmDzSet", 0.} };
+
+        std::map< std::string, double > _trackLength = { {"ip", dummy}, {"set", dummy}, {"calo", dummy}, {"refitTanL", dummy}, {"refitZ", dummy}, {"setRefitZ", dummy}  };
 
         double _smearings[5] = {0., 10., 30., 50., 100.};
         double _tofSetFront[5];

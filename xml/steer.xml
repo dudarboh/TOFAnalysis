@@ -1,5 +1,9 @@
 <marlin>
 
+    <constants>
+
+    </constants>
+
     <global>
 		<parameter name="LCIOInputFiles">
             <!-- /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/250-SetA/2f_hadronic_eR_pL/ILD_l5_o1_v02/v02-02/00015164/000/rv02-02.sv02-02.mILD_l5_o1_v02.E250-SetA.I500012.P2f_z_h.eR.pL.n000_001.d_rec_00015164_310.slcio -->
@@ -13,6 +17,8 @@
 	<execute>
         <processor name="InitDD4hep" />
         <processor name="MySETAnalysis"/>
+        <!-- <processor name="MyRefitProcessorProton"/> -->
+
 	</execute>
 
 
@@ -27,7 +33,47 @@
     <processor name="MySETAnalysis" type="SETAnalysis">
         <!-- verbosity level of this processor ("DEBUG0-4,MESSAGE0-4,WARNING0-4,ERROR0-4,SILENT") -->
         <parameter name="Verbosity" type="string">MESSAGE</parameter>
-
     </processor>
+
+    <processor name="MyRefitProcessorProton" type="RefitProcessor">
+      <!--RefitProcessor refits an input track collection, producing a new collection of tracks. Proton mass hypothesis-->
+      <!--Use Energy Loss in Fit-->
+      <parameter name="EnergyLossOn" type="bool">true</parameter>
+      <!--Fit direction: -1: backward [default], +1: forward-->
+      <parameter name="FitDirection" type="int">-1</parameter>
+      <!--Value used for the initial d0 variance of the trackfit-->
+      <parameter name="InitialTrackErrorD0" type="float">1e+06</parameter>
+      <!--Value used for the initial omega variance of the trackfit-->
+      <parameter name="InitialTrackErrorOmega" type="float">0.00001</parameter>
+      <!--Value used for the initial phi0 variance of the trackfit-->
+      <parameter name="InitialTrackErrorPhi0" type="float">100</parameter>
+      <!--Value used for the initial tanL variance of the trackfit-->
+      <parameter name="InitialTrackErrorTanL" type="float">100</parameter>
+      <!--Value used for the initial z0 variance of the trackfit-->
+      <parameter name="InitialTrackErrorZ0" type="float">1e+06</parameter>
+      <!--TrackState to use for initialization of the fit: -1: refit from hits [default], 1: AtIP, 2: AtFirstHit, 3: AtLastHit, 4:AtCalo-->
+      <parameter name="InitialTrackState" type="int">3</parameter>
+      <!--Name of the input track collection-->
+      <parameter name="InputTrackCollectionName" type="string" lcioInType="Track">MarlinTrkTracks</parameter>
+      <!--Name of the MCParticle-Track Relations collection for input tracks-->
+      <parameter name="InputTrackRelCollection" type="string" lcioInType="LCRelation" />
+      <!--Maximum Chi-squared value allowed when assigning a hit to a track-->
+      <!--  <parameter name="MaxChi2PerHit" type="float">100 </parameter>-->
+      <!--Use MultipleScattering in Fit-->
+      <!--  <parameter name="MultipleScatteringOn" type="bool">true </parameter>-->
+      <!--Name of the output track collection-->
+      <parameter name="OutputTrackCollectionName" type="string" lcioOutType="Track">MarlinTrkTracksProton123</parameter>
+      <!--Name of the MCParticle-Track Relations collection for output tracks-->
+      <parameter name="OutputTrackRelCollection" type="string" lcioOutType="LCRelation">MarlinTrkTracksProtonMCP123</parameter>
+      <!--particle mass that is used in the fit - default is the pion mass: 0.13957018 )-->
+      <parameter name="ParticleMass" type="double">0.93828</parameter>
+      <!--Smooth All Mesurement Sites in Fit-->
+      <!--  <parameter name="SmoothOn" type="bool">false </parameter>-->
+      <!--Name of the track fitting system to be used (KalTest, DDKalTest, aidaTT, ... )-->
+      <parameter name="TrackSystemName" type="string">DDKalTest</parameter>
+      <!--verbosity level of this processor ("DEBUG0-4,MESSAGE0-4,WARNING0-4,ERROR0-4,SILENT")-->
+      <parameter name="Verbosity" type="string">MESSAGE</parameter>
+    </processor>
+
 
 </marlin>
