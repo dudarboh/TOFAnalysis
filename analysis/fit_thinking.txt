@@ -41,6 +41,7 @@ MarlinTrk::createFinalisedLCIOTrack(marlinTrk, hit_list, track, IMarlinTrack::ba
             //here is Kalman filter magic happens.
             //Create remporary site, then filter for maxChi2Increment
             // save the site if hit passes
+            // last constrained fit is not always first hit --- ???
 
 
     finaliseLCIOTrack(marlinTrk, track, hit_list, fit_direction );
@@ -71,3 +72,7 @@ return_error = marlintrk->propagate(last_hit_pos, last_constrained_hit, *trkStat
 IMPL::TrackStateImpl* trkStateCalo = new IMPL::TrackStateImpl() ;
 return_error = createTrackStateAtCaloFace(marlintrk, trkStateCalo, last_constrained_hit, tanL_is_positive);
 return_error = marlintrk->propagateToLayer(encoder.lowWord(), last_constrained_hit, *trkStateCalo, -inf, 0, 0, IMarlinTrack::modeForward ) ;
+
+******************************
+ marlintrk->propagate() doesn't change omega and tanL of the trackstate or helix
+******************************

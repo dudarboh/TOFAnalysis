@@ -10,7 +10,7 @@
 #include "TFile.h"
 #include "TTree.h"
 #include "Math/Vector3D.h"
-
+#include "TH1F.h"
 #include "EVENT/MCParticle.h"
 #include "EVENT/ReconstructedParticle.h"
 #include "EVENT/SimCalorimeterHit.h"
@@ -37,8 +37,7 @@ class SETAnalysis : public Processor {
         pair<double, double> getTpcR();
         TrackerHit* getSetHit(Track* track, double tpcROuter);
         double getTrackLength(Track* track, int from=TrackState::AtIP, int to=TrackState::AtCalorimeter);
-        double getTrackLengthRefit(Track* track);
-        double getTrackLengthAdrian(Track* track);
+        std::pair<double, double> getTrackLengthRefit(Track* track);
 
         CalorimeterHit* getClosestHit( Cluster* cluster, XYZVectorF posTrackAtCalo);
         pair<XYZVectorF, double> getFastestHit( Cluster* cluster, double smearing=0.);
