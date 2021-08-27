@@ -10,7 +10,7 @@ cd ./job${2}
 cp ${1} .
 filename=`ls *.slcio`
 
-Marlin /afs/desy.de/user/d/dudarboh/SETAnalysis/xml/steer.xml --global.LCIOInputFiles="${filename}"
+Marlin /afs/desy.de/user/d/dudarboh/TOFAnalysis/xml/steer.xml --global.LCIOInputFiles="${filename}"
 mv SETAnalysis_RENAME.root ${2}.root
 rm -f ../${2}.root
 mv ${2}.root ..

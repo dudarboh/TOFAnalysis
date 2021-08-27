@@ -37,7 +37,7 @@ double prob_pid(double mom, double beta, TGraphErrors gr){
 ''')
 
 ROOT.gStyle.SetNdivisions(512)
-# ROOT.gStyle.SetNdivisions(512, "Y")
+ROOT.gStyle.SetNdivisions(512, "Y")
 
 # Get true beta vs p curves
 def get_true_curves():
@@ -235,67 +235,44 @@ def get_curves(df, m, s, f_true, n_mom_bins=30, to_draw=True):
 
 
 # Variables for the loops
-smearings = [0 , 10, 30, 50, 100]
-methods =["set", "set_avg", "closest", "fastest", "frank_fit", "frank_avg"]
 pdgs = [211, 321, 2212]
 
 # Filter and calculate betas
 df = ROOT.RDataFrame("SETAnalysis", "/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
-df = df.Filter("n_ecal_hits > 0 && abs(pos_closest.z()) < 2000.")\
-       .Define("mom", "ts_calo_mom.r()")
+df = df.Filter("n_ecal_hits > 0 && abs(ts_ecal_pos.z()) < 2385. && abs(ts_ecal_z0) < 1.")\
+        .Define("mom_ip", "ts_ip_mom.r()")\
+        .Define("mom_ecal", "ts_ecal_mom.r()")\
+        .Define("mom_tanL", "sqrt(mom2_hm_TanL)")\
+        .Define("mom_dz", "sqrt(mom2_hm_dz)")
 
-for s in smearings:
-    df = df.Define("beta_set_{}".format(s), "track_length_set/(tof_set_front_{}*SPEED_OF_LIGHT)".format(s))\
-           .Define("beta_closest_{}".format(s), "track_length_calo/(tof_closest_{}*SPEED_OF_LIGHT)".format(s))\
-           .Define("beta_fastest_{}".format(s), "track_length_calo/(tof_fastest_{}*SPEED_OF_LIGHT)".format(s))\
-           .Define("beta_frank_fit_{}".format(s), "track_length_calo/(tof_frank_fit_{}*SPEED_OF_LIGHT)".format(s))\
-           .Define("beta_frank_avg_{}".format(s), "track_length_calo/(tof_frank_avg_{}*SPEED_OF_LIGHT)".format(s))\
-           .Define("beta_set_avg_{}".format(s), "track_length_set/(0.5*( tof_set_front_{0}+tof_set_back_{0} )*SPEED_OF_LIGHT)".format(s))\
+df = df.Define("beta_ip", "track_length_ip/(tof_closest_0*SPEED_OF_LIGHT)")\
+       .Define("beta_ecal", "track_length_calo/(tof_closest_0*SPEED_OF_LIGHT)")\
+       .Define("mass_ip", "mom_ip / beta_ip * sqrt(1. - beta_ip*beta_ip)")\
+       .Define("mass_ecal", "mom_ecal / beta_ecal * sqrt(1. - beta_ecal*beta_ecal)")\
+       .Define("mass_tanL", "sqrt(2. * mom2_hm_TanL * (SPEED_OF_LIGHT*tof_closest_0/track_length_refit_tanL - 1.))")\
+       .Define("mass_z", "sqrt(2. * mom2_hm_dz * (SPEED_OF_LIGHT*tof_closest_0/track_length_refit_z - 1.))")
 
+canvas = ROOT.TCanvas()
+canvas.SetGridx()
+canvas.SetGridy()
+ROOT.gStyle.SetOptStat(10)
 
+h = df.Histo2D(("h", "TDR; p (GeV); mass (GeV)", 30, .0, 10., 2000, 0., 1.), "mom_ip", "mass_ip")
+h.Draw("colz")
+canvas.Update()
+input("wait")
 
-canvas2 = ROOT.TCanvas()
-canvas2.SetGridx()
-canvas2.SetGridy()
+h = df.Histo2D(("h", "Dev; p (GeV); mass (GeV)", 30, .0, 10., 2000, 0., 1.), "mom_ecal", "mass_ecal")
+h.Draw("colz")
+canvas.Update()
+input("wait")
 
-# n_pions = df.Filter("abs(pdg) == 211").Count().GetValue()
-# n_kaons = df.Filter("abs(pdg) == 321").Count().GetValue()
-# n_protons = df.Filter("abs(pdg) == 2212").Count().GetValue()
-# n_tot = n_pions + n_kaons + n_protons
-# print(n_pions/n_tot*100., n_kaons/n_tot*100., n_protons/n_tot*100.)
-# h = ROOT.TH1F("h", "", 3, 0, 3)
-# h.Fill("#pi^{#pm}", n_pions)
-# h.Fill("K^{#pm}", n_kaons)
-# h.Fill("protons", n_protons)
+h = df.Histo2D(("h", "Refit1; p (GeV); mass (GeV)", 30, .0, 10., 2000, 0., 1.), "mom_tanL", "mass_tanL")
+h.Draw("colz")
+canvas.Update()
+input("wait")
 
-# h = df.Histo1D(("h_tr_len", "title;x;y", 1000, 1750, 4000), "track_length_calo")
-# h.Draw("histo")
-# input("wait")
-
-f_true = get_true_curves()
-graphs = {}
-gr_diff = {}
-gr_sep = {}
-
-for s in smearings:
-    for m_idx, m in enumerate(methods):
-        graphs[m, s], gr_diff[m, s], gr_sep[m, s] = get_curves(df, m , s, f_true, 30, True)
-
-        #     canvas2.cd()
-        #     gr_sep[m, s]["pik"].Draw("APL" if m_idx == 0 else "PLsame")
-        #     gr_sep[m, s]["pik"].SetLineColor(m_idx+1)
-        #     gr_sep[m, s]["pik"].SetMarkerColor(m_idx+1)
-        #     gr_sep[m, s]["pik"].SetTitle(m)
-        #     canvas2.Update()
-        # canvas2.BuildLegend()
-
-        # ROOT.gInterpreter.Declare("""
-        #     TGraphErrors gr_{0}_{1}_pi = TGraphErrors(TPython::Exec("graphs[ '{0}' , {1}][211] ") );
-        #     TGraphErrors gr_{0}_{1}_k = TGraphErrors(TPython::Exec("graphs[ '{0}' , {1}][321] ") );
-        #     TGraphErrors gr_{0}_{1}_p = TGraphErrors(TPython::Exec("graphs[ '{0}' , {1}][2212] ") );
-        # """.format(m, s)         )
-        # df = df.Define("prob_{}_{}_pi".format(m, s), "prob_pid(mom, beta_{0}_{1}, gr_{0}_{1}_pi)".format(m, s))
-        # test = df.Histo1D(("test", "title", 500, 0., 1.), "prob_{}_{}_pi".format(m, s))
-        # test.Draw()
-
-        input("wait")
+h = df.Histo2D(("h", "Refit2; p (GeV); mass (GeV)", 30, .0, 10., 2000, 0., 1.), "mom_dz", "mass_z")
+h.Draw("colz")
+canvas.Update()
+input("wait")

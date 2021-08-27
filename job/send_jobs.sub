@@ -1,4 +1,4 @@
-executable = /afs/desy.de/user/d/dudarboh/SETAnalysis/job/job.sh
+executable = /afs/desy.de/user/d/dudarboh/TOFAnalysis/job/job.sh
 arguments = $(file) $(ProcId)
 
 Requirements = OpSys == "LINUX" && Arch =="X86_64"
@@ -14,4 +14,4 @@ log = ../log/$(ProcId).log
 output = ../out/$(ProcId).out
 error = ../err/$(ProcId).err
 
-queue file from /afs/desy.de/user/d/dudarboh/SETAnalysis/job/2f_Z_hadronic_250gev.txt
+queue file from /afs/desy.de/user/d/dudarboh/TOFAnalysis/job/2f_Z_hadronic_250gev.txt
