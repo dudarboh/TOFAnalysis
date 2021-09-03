@@ -9,12 +9,15 @@
 #include "marlin/Processor.h"
 #include "TFile.h"
 #include "TTree.h"
+#include "TCanvas.h"
 #include "Math/Vector3D.h"
 #include "TH1F.h"
 #include "EVENT/MCParticle.h"
 #include "EVENT/ReconstructedParticle.h"
 #include "EVENT/SimCalorimeterHit.h"
 #include "UTIL/LCRelationNavigator.h"
+#include <DD4hep/Detector.h>
+
 
 namespace MarlinTrk{
     class IMarlinTrkSystem;
@@ -37,18 +40,15 @@ class SETAnalysis : public Processor {
         pair<double, double> getTpcR();
         TrackerHit* getSetHit(Track* track, double tpcROuter);
 
-        double estimateTrackLengthTanL(double phi1, double phi2, double omega, double tanL);
-        double estimateTrackLengthZ(double phi1, double phi2, double omega, double z1, double z2);
-
-        double getTrackLength(Track* track, bool extrapolateToIp=true, bool extrapolateToEcal=true, std::string method="dz");
-        double getMom2Harmonic(Track* track, bool extrapolateToIp, bool extrapolateToEcal, std::string method);
-
         CalorimeterHit* getClosestHit( Cluster* cluster, XYZVectorF posTrackAtCalo);
         pair<XYZVectorF, double> getFastestHit( Cluster* cluster, double smearing=0.);
         double getTofFrankFit( Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing=0., unsigned int nLayers=10 );
         double getTofFrankAvg( Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing=0., unsigned int nLayers=10 );
 
         int getNEcalHits(Cluster* cluster);
+
+        void drawPfo(Track* track, Cluster* cluster);
+
 
         unique_ptr<TFile> _file;
         unique_ptr<TTree> _tree;
@@ -69,14 +69,16 @@ class SETAnalysis : public Processor {
 
         bool _hasSetHit;
         int _nEcalHits;
+        int _nFitHits;
         XYZVector _posSetHit{};
 
         XYZVectorF _posClosest{};
         XYZVectorF _posFastest[5];
 
-        std::map< std::string, double > _mom = { {"sqrHmTanL", 0.}, {"sqrHmTanLSet", 0.}, {"sqrHmDz", 0.}, {"sqrHmDzSet", 0.} };
+        std::map< std::string, double > _mom = { {"hmSet", 0.}, {"hmEcal", 0.} };
 
-        std::map< std::string, double > _trackLength = { {"ip", dummy}, {"set", dummy}, {"calo", dummy}, {"refitTanL", dummy}, {"refitZ", dummy}, {"setRefitZ", dummy}  };
+        std::map< std::string, double > _trackLength = { {"set", dummy}, {"ecal", dummy}  };
+        std::map< std::string, double > _phiCurl = { {"set", dummy}, {"ecal", dummy}  };
 
         double _smearings[5] = {0., 10., 30., 50., 100.};
         double _tofSetFront[5];
@@ -91,6 +93,8 @@ class SETAnalysis : public Processor {
         MarlinTrk::IMarlinTrkSystem* _trkSystem;
         double _bField;
         double _tpcROuter;
+        dd4hep::Detector& _theDetector = dd4hep::Detector::getInstance();
+
 };
 
 

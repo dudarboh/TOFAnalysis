@@ -19,30 +19,30 @@ if(NOT WIN32)
 endif()
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
-cmake_policy(VERSION 3.12)
-
+# cmake_policy(VERSION 3.12)
 project(SETAnalysis VERSION 1.0)
+
+include($ENV{ILCSOFT}/ILCSoft.cmake)
+find_package(ILCUTIL REQUIRED COMPONENTS ILCSOFT_CMAKE_MODULES)
+include(ilcsoft_default_settings)
 
 # -03 compiler optimization for speed
 # -O0 disable for valgrind debugging
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -Wno-effc++")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -g -Wno-effc++")
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 add_library(${PROJECT_NAME} SHARED ${PROJECT_SOURCE_DIR}/src/SETAnalysis.cpp)
 
 ### DEPENDENCIES ###
-include($ENV{ILCSOFT}/ILCSoft.cmake)
-find_package(ILCUTIL REQUIRED COMPONENTS ILCSOFT_CMAKE_MODULES)
-include(ilcsoft_default_settings)
-
+# find_package(ROOT REQUIRED COMPONENTS Geom Physics )
 find_package(Marlin 1.15 REQUIRED)
 find_package(MarlinUtil 1.4 REQUIRED)
 find_package(MarlinTrk REQUIRED)
-
-FOREACH(pkg Marlin MarlinUtil MarlinTrk)
+FOREACH(pkg Marlin MarlinUtil MarlinTrk )
     include_directories(${${pkg}_INCLUDE_DIRS})
     target_link_libraries(${PROJECT_NAME} ${${pkg}_LIBRARIES})
 ENDFOREACH()
+
 
 message(STATUS "${Yellow}CMAKE_CXX_FLAGS:  ${CMAKE_CXX_FLAGS} ${Reset}")
 install(TARGETS ${PROJECT_NAME} DESTINATION ${PROJECT_SOURCE_DIR}/lib)

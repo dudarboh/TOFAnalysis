@@ -17,6 +17,8 @@
 	<execute>
         <processor name="InitDD4hep" />
         <processor name="MySETAnalysis"/>
+
+        <!-- <processor name="MyKinkFinder"/> -->
         <!-- <processor name="MyRefitProcessorProton"/> -->
 
 	</execute>
@@ -32,7 +34,7 @@
 
     <processor name="MySETAnalysis" type="SETAnalysis">
         <!-- verbosity level of this processor ("DEBUG0-4,MESSAGE0-4,WARNING0-4,ERROR0-4,SILENT") -->
-        <parameter name="Verbosity" type="string">MESSAGE</parameter>
+        <parameter name="Verbosity" type="string">DEBUG6</parameter>
     </processor>
 
     <processor name="MyRefitProcessorProton" type="RefitProcessor">
@@ -75,5 +77,10 @@
       <parameter name="Verbosity" type="string">MESSAGE</parameter>
     </processor>
 
+
+    <processor name="MyKinkFinder" type="KinkFinderDEBUG">
+      <parameter name="DebugPrinting" type="int"> 0</parameter>
+      <parameter name="TrackCollection" type="string"> MarlinTrkTracksNEW</parameter>
+    </processor>
 
 </marlin>
