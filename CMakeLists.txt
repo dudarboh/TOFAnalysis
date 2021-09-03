@@ -20,7 +20,7 @@ endif()
 
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 # cmake_policy(VERSION 3.12)
-project(SETAnalysis VERSION 1.0)
+project(TOFAnalysis VERSION 1.0)
 
 include($ENV{ILCSOFT}/ILCSoft.cmake)
 find_package(ILCUTIL REQUIRED COMPONENTS ILCSOFT_CMAKE_MODULES)
@@ -31,7 +31,7 @@ include(ilcsoft_default_settings)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -g -Wno-effc++")
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
-add_library(${PROJECT_NAME} SHARED ${PROJECT_SOURCE_DIR}/src/SETAnalysis.cpp)
+add_library(${PROJECT_NAME} SHARED ${PROJECT_SOURCE_DIR}/src/TOFAnalysis.cpp)
 
 ### DEPENDENCIES ###
 # find_package(ROOT REQUIRED COMPONENTS Geom Physics )

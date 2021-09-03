@@ -166,7 +166,7 @@ def get_curves(df, mom_str, method, n_mom_bins=50, to_draw=True):
 
 
 
-df = ROOT.RDataFrame("SETAnalysis", "/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
+df = ROOT.RDataFrame("TOFAnalysis", "/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
 df = df.Filter("n_ecal_hits > 0 && abs(ts_ecal_pos.z()) < 2385. && abs(ts_ecal_z0) < 1.")\
         .Define("mom_ip", "ts_ip_mom.r()")\
         .Define("mom_ecal", "ts_ecal_mom.r()")\
@@ -191,7 +191,7 @@ df = df.Define("beta_ip", "track_length_ip/(tof_closest_0*SPEED_OF_LIGHT)")\
 def plot_ip_matrix():
     gr_ip, gr_diff_ip, gr_sep_ip = get_curves(df, "mom_ip", "mass_ip", n_mom_bins=50, to_draw=False)
     file = ROOT.TFile("/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
-    tree = file.SETAnalysis
+    tree = file.TOFAnalysis
 
     speed_of_light = 299.792458
     n_points = gr_ip[211].GetN()
@@ -308,7 +308,7 @@ def plot_ip_matrix():
 def plot_ecal_matrix():
     gr, gr_diff, gr_sep = get_curves(df, "mom_ecal", "mass_ecal", n_mom_bins=50, to_draw=False)
     file = ROOT.TFile("/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
-    tree = file.SETAnalysis
+    tree = file.TOFAnalysis
 
     speed_of_light = 299.792458
     n_points = gr[211].GetN()
@@ -425,7 +425,7 @@ def plot_ecal_matrix():
 def plot_tanL_matrix():
     gr, gr_diff, gr_sep = get_curves(df, "mom_tanL", "mass_tanL", n_mom_bins=50, to_draw=False)
     file = ROOT.TFile("/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
-    tree = file.SETAnalysis
+    tree = file.TOFAnalysis
 
     speed_of_light = 299.792458
     n_points = gr[211].GetN()
@@ -541,7 +541,7 @@ def plot_tanL_matrix():
 def plot_dz_matrix():
     gr, gr_diff, gr_sep = get_curves(df, "mom_dz", "mass_z", n_mom_bins=50, to_draw=False)
     file = ROOT.TFile("/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
-    tree = file.SETAnalysis
+    tree = file.TOFAnalysis
 
     speed_of_light = 299.792458
     n_points = gr[211].GetN()

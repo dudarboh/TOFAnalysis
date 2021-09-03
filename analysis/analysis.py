@@ -9,7 +9,7 @@ TRandom3 r;
 ''')
 
 
-ch = ROOT.TChain("SETAnalysis")
+ch = ROOT.TChain("TOFAnalysis")
 
 ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
 

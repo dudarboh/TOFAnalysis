@@ -238,7 +238,7 @@ def get_curves(df, m, s, f_true, n_mom_bins=30, to_draw=True):
 pdgs = [211, 321, 2212]
 
 # Filter and calculate betas
-df = ROOT.RDataFrame("SETAnalysis", "/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
+df = ROOT.RDataFrame("TOFAnalysis", "/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
 df = df.Filter("n_ecal_hits > 0 && abs(ts_ecal_pos.z()) < 2385. && abs(ts_ecal_z0) < 1.")\
         .Define("mom_ip", "ts_ip_mom.r()")\
         .Define("mom_ecal", "ts_ecal_mom.r()")\

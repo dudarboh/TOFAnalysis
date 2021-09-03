@@ -1,4 +1,4 @@
-#include "SETAnalysis.hpp"
+#include "TOFAnalysis.hpp"
 
 #include "EVENT/LCCollection.h"
 #include "EVENT/Track.h"
@@ -29,15 +29,6 @@
 #include "TROOT.h"
 #include "TH1F.h"
 #include "TCanvas.h"
-#include "TGeoManager.h"
-#include "TVirtualGeoTrack.h"
-#include <TParticle.h>
-#include "TPolyMarker3D.h"
-#include "TGeoTrack.h"
-#include "TGeoTube.h"
-#include "TGeoHelix.h"
-#include "TView.h"
-#include "TSystem.h"
 #include "MarlinTrk/Factory.h"
 #include "MarlinTrk/IMarlinTrack.h"
 #include "MarlinTrk/HelixTrack.h"
@@ -58,24 +49,24 @@ using dd4hep::DetElement;
 using dd4hep::rec::FixedPadSizeTPCData;
 using namespace MarlinTrk;
 
-SETAnalysis aSETAnalysis;
+TOFAnalysis aTOFAnalysis;
 
-SETAnalysis::SETAnalysis() : Processor("SETAnalysis"){
+TOFAnalysis::TOFAnalysis() : Processor("TOFAnalysis"){
     registerProcessorParameter(string("outputFile"),
                                string("Name of the output root file"),
                                _outputFileName,
-                               string("SETAnalysis_RENAME.root"));
+                               string("TOFAnalysis_RENAME.root"));
 
 }
 
-void SETAnalysis::init(){
+void TOFAnalysis::init(){
     DDMarlinCED::init(this) ;
 
 
     std::cout.precision(7);
     _nEvent = 0;
     _file.reset( new TFile(_outputFileName.c_str(), "RECREATE") );
-    _tree.reset( new TTree("SETAnalysis", "SETAnalysis") );
+    _tree.reset( new TTree("TOFAnalysis", "TOFAnalysis") );
 
     _tree->Branch("pdg", &_pdg);
     _tree->Branch("has_set_hit", &_hasSetHit);
@@ -126,7 +117,7 @@ void SETAnalysis::init(){
 }
 
 
-void SETAnalysis::processEvent(LCEvent* evt){
+void TOFAnalysis::processEvent(LCEvent* evt){
     ++_nEvent;
     streamlog_out(MESSAGE)<<"****** Event: "<<_nEvent<<endl;
 
@@ -190,6 +181,11 @@ void SETAnalysis::processEvent(LCEvent* evt){
         }
 
         ///////////////////////WRITE TRACK LENGTHS/////////////////////
+
+        //This is how it should look like!!!!!!!!!
+        getTracksToFit();
+        getTrackStatesPerHit();
+
         //calculate track length
         std::vector <TrackerHit*> trackHits = track->getTrackerHits();
         //It is probably required by the fitter...
@@ -200,7 +196,7 @@ void SETAnalysis::processEvent(LCEvent* evt){
         };
         std::sort(trackHits.begin(), trackHits.end(), sortByRho);
 
-        auto estimateArcLength = [](double phi1, double phi2, double omega, double z1, double z2) {
+        auto getArcLength = [](double phi1, double phi2, double omega, double z1, double z2) {
             double dPhi = std::abs(phi2-phi1);
             if (dPhi > M_PI) dPhi = 2*M_PI - dPhi;
             return std::sqrt( std::pow(dPhi/omega, 2) + std::pow(z2-z1, 2) );
@@ -278,7 +274,7 @@ void SETAnalysis::processEvent(LCEvent* evt){
         _mom["hmEcal"] = std::sqrt(_trackLength["ecal"] / std::accumulate(pWeighted.begin(), pWeighted.end(), 0.) );
 
         // if (_trackLength["ecal"] - _trackLength["set"] < 0 || _trackLength["ecal"] - _trackLength["set"] > 100.){
-            if (_trackLength["ecal"] > 7000.){
+            // if (_trackLength["ecal"] > 7000.){
             DDMarlinCED::newEvent(this);
             DDMarlinCED::drawDD4hepDetector(_theDetector, 0, std::vector<std::string>{"SIT", "SET"});
             DDCEDPickingHandler& pHandler=DDCEDPickingHandler::getInstance();
@@ -293,7 +289,7 @@ void SETAnalysis::processEvent(LCEvent* evt){
 
             DDMarlinCED::draw(this, 1);
 
-        }
+        // }
         // if (_phiCurl["ecal"] > M_PI) drawTrack(track);
 
         SimTrackerHit* setSimHitFront = nullptr;
@@ -328,12 +324,12 @@ void SETAnalysis::processEvent(LCEvent* evt){
 
 }
 
-void SETAnalysis::end(){
+void TOFAnalysis::end(){
     _file->Write();
 }
 
 
-MCParticle* SETAnalysis::getMcMaxWeight(LCRelationNavigator pfoToMc, ReconstructedParticle* pfo){
+MCParticle* TOFAnalysis::getMcMaxWeight(LCRelationNavigator pfoToMc, ReconstructedParticle* pfo){
     MCParticle* mc = nullptr;
     const vector <LCObject*>& mcs = pfoToMc.getRelatedToObjects(pfo);
     const vector <float>& mcWeights = pfoToMc.getRelatedToWeights(pfo);
@@ -344,7 +340,7 @@ MCParticle* SETAnalysis::getMcMaxWeight(LCRelationNavigator pfoToMc, Reconstruct
 }
 
 
-pair<double, double> SETAnalysis::getTpcR(){
+pair<double, double> TOFAnalysis::getTpcR(){
     const Detector& detector = Detector::getInstance();
     const DetElement tpcDet = detector.detector("TPC");
     const FixedPadSizeTPCData* tpc = tpcDet.extension <FixedPadSizeTPCData>();
@@ -354,7 +350,7 @@ pair<double, double> SETAnalysis::getTpcR(){
     return std::make_pair(rInner, rOuter);
 }
 
-TrackerHit* SETAnalysis::getSetHit(Track* track, double tpcROuter){
+TrackerHit* TOFAnalysis::getSetHit(Track* track, double tpcROuter){
     const vector<TrackerHit*>& hits = track->getTrackerHits();
     XYZVector pos;
     //Performance: loop from the end. SET hits at the end!
@@ -366,7 +362,7 @@ TrackerHit* SETAnalysis::getSetHit(Track* track, double tpcROuter){
 }
 
 
-CalorimeterHit* SETAnalysis::getClosestHit( Cluster* cluster, XYZVectorF posTrackAtCalo){
+CalorimeterHit* TOFAnalysis::getClosestHit( Cluster* cluster, XYZVectorF posTrackAtCalo){
     CalorimeterHit* closestHit = nullptr;
 
     double closestDistance = std::numeric_limits<double>::max();
@@ -387,7 +383,7 @@ CalorimeterHit* SETAnalysis::getClosestHit( Cluster* cluster, XYZVectorF posTrac
 }
 
 
-pair<XYZVectorF, double> SETAnalysis::getFastestHit( Cluster* cluster, double smearing ){
+pair<XYZVectorF, double> TOFAnalysis::getFastestHit( Cluster* cluster, double smearing ){
     pair<XYZVectorF, double> earliestHit{};
 
     earliestHit.second = std::numeric_limits<double>::max();
@@ -406,7 +402,7 @@ pair<XYZVectorF, double> SETAnalysis::getFastestHit( Cluster* cluster, double sm
 }
 
 
-double SETAnalysis::getTofFrankFit( Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing, unsigned int nLayers ){
+double TOFAnalysis::getTofFrankFit( Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing, unsigned int nLayers ){
     vector <double> d;
     vector <double> time;
     vector <double> d_err;
@@ -447,7 +443,7 @@ double SETAnalysis::getTofFrankFit( Cluster* cluster, XYZVectorF posTrackAtCalo,
 }
 
 
-double SETAnalysis::getTofFrankAvg( Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing, unsigned int nLayers ){
+double TOFAnalysis::getTofFrankAvg( Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing, unsigned int nLayers ){
     double tof = 0.;
     int nHits = 0;
 
@@ -482,7 +478,7 @@ double SETAnalysis::getTofFrankAvg( Cluster* cluster, XYZVectorF posTrackAtCalo,
 
 
 
-int SETAnalysis::getNEcalHits(Cluster* cluster){
+int TOFAnalysis::getNEcalHits(Cluster* cluster){
     int nHits = 0;
     for ( const auto hit : cluster->getCalorimeterHits() ){
         CHT hitType( hit->getType() );
@@ -493,7 +489,7 @@ int SETAnalysis::getNEcalHits(Cluster* cluster){
 }
 
 
-void SETAnalysis::drawPfo(Track* track, Cluster* cluster){
+void TOFAnalysis::drawPfo(Track* track, Cluster* cluster){
     int nSubTracks = track->getTracks().size();
     streamlog_out( DEBUG6 ) << " -- Final LCIO Track has "<<nSubTracks<< " subtracks - will use these for displaying hits "<< std::endl ;
     if ( nSubTracks == 0 ) return;
@@ -517,7 +513,7 @@ void SETAnalysis::drawPfo(Track* track, Cluster* cluster){
         // std::copy( subTrack->getTrackerHits().begin() , subTrack->getTrackerHits().end() , std::back_inserter(  hits ) ) ;
         const Track* subTrack = track->getTracks()[i];
         int nHits = subTrack->getTrackerHits().size();
-        streamlog_out( DEBUG6 ) << " -- subTrack i= "<< i << " has " <<  nHits << " hits  "<< std::endl ;
+        streamlog_out( DEBUG6 ) << " -- subTrack i= "<< i << " has " <<  nHits << " hits and "<<nSubSubTracks<<" subSubTracks"<< std::endl;
         for (int j = 0; j < nHits; ++j) {
             TrackerHit* hit = subTrack->getTrackerHits()[j];
             float x = hit->getPosition()[0];

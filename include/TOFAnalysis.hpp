@@ -1,5 +1,5 @@
-#ifndef SETAnalysis_h
-#define SETAnalysis_h 1
+#ifndef TOFAnalysis_h
+#define TOFAnalysis_h 1
 
 #include <memory>
 #include <string>
@@ -28,10 +28,10 @@ using std::string, std::cout, std::endl, std::unique_ptr, std::vector, std::pair
 using ROOT::Math::XYZVectorF;
 using ROOT::Math::XYZVector;
 
-class SETAnalysis : public Processor {
+class TOFAnalysis : public Processor {
     public:
-        SETAnalysis();
-        Processor* newProcessor() {return new SETAnalysis;}
+        TOFAnalysis();
+        Processor* newProcessor() {return new TOFAnalysis;}
         void init();
         void processEvent(LCEvent* evt);
         void end();
