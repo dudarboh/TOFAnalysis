@@ -13,7 +13,7 @@ namespace TOFAnaUtils{
     }
 
 
-    std::pair<double, double> getTpcR(){
+    pair<double, double> getTpcR(){
         const Detector& detector = Detector::getInstance();
         const DetElement tpcDet = detector.detector("TPC");
         const FixedPadSizeTPCData* tpc = tpcDet.extension <FixedPadSizeTPCData>();
@@ -163,35 +163,95 @@ namespace TOFAnaUtils{
 
 
     void drawPfo(Track* track, Cluster* cluster){
+        vector<Track*> subTracks;
+        subTracks.push_back(track);
         int nSubTracks = track->getTracks().size();
-        streamlog_out( DEBUG6 ) << " -- Final LCIO Track has "<<nSubTracks<< " subtracks - will use these for displaying hits "<< std::endl ;
-        if ( nSubTracks == 0 ) return;
+        if (nSubTracks != 1){
+            int nHitsTot = track->getTrackerHits().size();
+            int nHits0 = track->getTracks()[0]->getTrackerHits().size();
+            int nHits1 = track->getTracks()[1]->getTrackerHits().size();
+            if( ((nHitsTot == nHits0 + nHits1)) || ((nHitsTot == nHits0 + nHits1 + 1))  ){
+                for(int j=2; j < nSubTracks; ++j) subTracks.push_back( track->getTracks()[j] );
+            }
+            else{
+                // This means VXD+SIT subTrack is not there (bug?!)! So we need to add tracks from i=1
+                for(int j=1; j < nSubTracks; ++j) subTracks.push_back( track->getTracks()[j] );
+            }
+        }
 
-        // std::copy( track->getTrackerHits().begin() , track->getTrackerHits().end() , std::back_inserter(  hits ) ) ;
-        cout<<"Track hits size:"<<track->getTrackerHits().size()<<endl;
-        cout<<"N subdetectors:"<<track->getSubdetectorHitNumbers().size()<<endl;
-        cout<<"VXD used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::VXD)*2-2]<<endl;
-        cout<<"VXD not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::VXD)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::VXD)*2-2]<<endl;
-        cout<<"SIT used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SIT)*2-2]<<endl;
-        cout<<"SIT not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SIT)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::SIT)*2-2]<<endl;
-        cout<<"FTD used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::FTD)*2-2]<<endl;
-        cout<<"FTD not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::FTD)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::FTD)*2-2]<<endl;
-        cout<<"TPC used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-2]<<endl;
-        cout<<"TPC not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-2]<<endl;
-        cout<<"SET used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-2]<<endl;
-        cout<<"SET not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-2]<<endl;
+        // streamlog_out( DEBUG6 ) << " -- Final LCIO Track has "<<nSubTracks<< " subtracks - will use these for displaying hits "<< std::endl ;
+        // if ( nSubTracks == 0 ) return;
+        //
+        // // std::copy( track->getTrackerHits().begin() , track->getTrackerHits().end() , std::back_inserter(  hits ) ) ;
+        // cout<<"Track hits size:"<<track->getTrackerHits().size()<<endl;
+        // cout<<"N subdetectors:"<<track->getSubdetectorHitNumbers().size()<<endl;
+        // cout<<"VXD used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::VXD)*2-2]<<endl;
+        // cout<<"VXD not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::VXD)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::VXD)*2-2]<<endl;
+        // cout<<"SIT used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SIT)*2-2]<<endl;
+        // cout<<"SIT not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SIT)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::SIT)*2-2]<<endl;
+        // cout<<"FTD used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::FTD)*2-2]<<endl;
+        // cout<<"FTD not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::FTD)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::FTD)*2-2]<<endl;
+        // cout<<"TPC used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-2]<<endl;
+        // cout<<"TPC not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-2]<<endl;
+        // cout<<"SET used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-2]<<endl;
+        // cout<<"SET not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-2]<<endl;
 
-        vector<int> hitsColors = {0x1700ff, 0x000fff, 0x0032ff, 0x005dff, 0x0080ff};
-        for(int i=0; i < nSubTracks; ++i){
+        for(unsigned int i=0; i < subTracks.size(); ++i){
             // std::copy( subTrack->getTrackerHits().begin() , subTrack->getTrackerHits().end() , std::back_inserter(  hits ) ) ;
-            const Track* subTrack = track->getTracks()[i];
+            const Track* subTrack = subTracks[i];
             int nHits = subTrack->getTrackerHits().size();
             streamlog_out( DEBUG6 ) << " -- subTrack i= "<< i << " has " <<  nHits << " hits and "<< endl;
             for (int j = 0; j < nHits; ++j) {
                 TrackerHit* hit = subTrack->getTrackerHits()[j];
                 XYZVector hitPos;
                 hitPos.SetCoordinates( hit->getPosition() );
-                ced_hit(hitPos.x(), hitPos.y(), hitPos.z(), 0, 3, hitsColors[i]);
+                ced_hit(hitPos.x(), hitPos.y(), hitPos.z(), 0, 3, 0x0400ff);
+            }
+
+            const TrackState* ts = subTrack->getTrackState(TrackState::AtLastHit);
+            XYZVectorF pos;
+            pos.SetCoordinates( ts->getReferencePoint() );
+            ced_hit(pos.x(), pos.y(), pos.z(), 0, 12, 0x00ff42);
+
+
+            if (i == 0){
+                const TrackState* tsIp = subTrack->getTrackState(TrackState::AtIP);
+                XYZVectorF posIp;
+                posIp.SetCoordinates( tsIp->getReferencePoint() );
+                ced_hit(posIp.x(), posIp.y(), posIp.z(), 0, 12, 0x00ff42);
+
+                double bField = MarlinUtil::getBzAtOrigin();
+                double pt = bField * 3e-4 / std::abs( tsIp->getOmega() );
+                double charge = ( tsIp->getOmega() > 0. ?  1. : -1. );
+                double Px = pt * std::cos(  tsIp->getPhi() );
+                double Py = pt * std::sin(  tsIp->getPhi() );
+                double Pz = pt * tsIp->getTanLambda() ;
+                double Xs = tsIp->getReferencePoint()[0] -  tsIp->getD0() * std::sin( tsIp->getPhi() ) ;
+                double Ys = tsIp->getReferencePoint()[1] +  tsIp->getD0() * std::cos( tsIp->getPhi() ) ;
+                double Zs = tsIp->getReferencePoint()[2] +  tsIp->getZ0() ;
+
+                DDMarlinCED::drawHelix(bField, charge, Xs, Ys, Zs, Px, Py, Pz, 1, 2, 0xff0000, 0., 1855., 2450., 0);
+
+            }
+            if (i == subTracks.size() - 1){
+                const TrackState* tsEcal = subTrack->getTrackState(TrackState::AtCalorimeter);
+                XYZVectorF posEcal;
+                posEcal.SetCoordinates( tsEcal->getReferencePoint() );
+                ced_hit(posEcal.x(), posEcal.y(), posEcal.z(), 0, 12, 0x00ff42);
+
+                double bField = MarlinUtil::getBzAtOrigin();
+                double pt = bField * 3e-4 / std::abs( tsEcal->getOmega() );
+                double charge = ( tsEcal->getOmega() > 0. ?  1. : -1. );
+                double Px = pt * std::cos(  tsEcal->getPhi() ) ;
+                double Py = pt * std::sin(  tsEcal->getPhi() ) ;
+                double Pz = pt * tsEcal->getTanLambda() ;
+                double Xs = tsEcal->getReferencePoint()[0] -  tsEcal->getD0() * std::sin( tsEcal->getPhi() ) ;
+                double Ys = tsEcal->getReferencePoint()[1] +  tsEcal->getD0() * std::cos( tsEcal->getPhi() ) ;
+                double Zs = tsEcal->getReferencePoint()[2] +  tsEcal->getZ0() ;
+                //helix at ECal
+                DDMarlinCED::drawHelix(-bField, -charge, Xs, Ys, Zs, Px, Py, Pz, 1, 2, 0xff9300, 0., 1855., 2450., 0);
+
+
             }
 
         }
@@ -203,46 +263,8 @@ namespace TOFAnaUtils{
 
             XYZVectorF hitPos;
             hitPos.SetCoordinates( hit->getPosition() );
-            ced_hit(hitPos.x(), hitPos.y(), hitPos.z(), 0, 7, 0x08ff00);
+            ced_hit(hitPos.x(), hitPos.y(), hitPos.z(), 0, 7, 0xff0000);
         }
-
-
-
-        const TrackState* tsIP = track->getTrackState(TrackState::AtIP);
-        ced_hit(tsIP->getReferencePoint()[0], tsIP->getReferencePoint()[1], tsIP->getReferencePoint()[2], 0, 12, 0x00e8ff);
-        const TrackState* tsFirst = track->getTrackState(TrackState::AtFirstHit);
-        ced_hit(tsFirst->getReferencePoint()[0], tsFirst->getReferencePoint()[1], tsFirst->getReferencePoint()[2], 0, 12, 0x00e8ff);
-        const TrackState* tsLast = track->getTrackState(TrackState::AtLastHit);
-        ced_hit(tsLast->getReferencePoint()[0], tsLast->getReferencePoint()[1], tsLast->getReferencePoint()[2], 0, 12, 0x00e8ff);
-        const TrackState* tsEcal = track->getTrackState(TrackState::AtCalorimeter);
-        ced_hit(tsEcal->getReferencePoint()[0], tsEcal->getReferencePoint()[1], tsEcal->getReferencePoint()[2], 0, 12, 0x00e8ff);
-
-
-        double bField = MarlinUtil::getBzAtOrigin();
-        double pt = bField * 3e-4 / std::abs( tsIP->getOmega() );
-        double charge = ( tsIP->getOmega() > 0. ?  1. : -1. );
-        double Px = pt * std::cos(  tsIP->getPhi() ) ;
-        double Py = pt * std::sin(  tsIP->getPhi() ) ;
-        double Pz = pt * tsIP->getTanLambda() ;
-        double Xs = tsIP->getReferencePoint()[0] -  tsIP->getD0() * std::sin( tsIP->getPhi() ) ;
-        double Ys = tsIP->getReferencePoint()[1] +  tsIP->getD0() * std::cos( tsIP->getPhi() ) ;
-        double Zs = tsIP->getReferencePoint()[2] +  tsIP->getZ0() ;
-        //helix at IP
-        DDMarlinCED::drawHelix(bField, charge, Xs, Ys, Zs, Px, Py, Pz, 1, 1,
-                             0xff0000, 0., 2100., 3000., 0);
-
-
-        pt = bField * 3e-4 / std::abs( tsEcal->getOmega() );
-        charge = ( tsEcal->getOmega() > 0. ?  1. : -1. );
-        Px = pt * std::cos(  tsEcal->getPhi() ) ;
-        Py = pt * std::sin(  tsEcal->getPhi() ) ;
-        Pz = pt * tsEcal->getTanLambda() ;
-        Xs = tsEcal->getReferencePoint()[0] -  tsEcal->getD0() * std::sin( tsEcal->getPhi() ) ;
-        Ys = tsEcal->getReferencePoint()[1] +  tsEcal->getD0() * std::cos( tsEcal->getPhi() ) ;
-        Zs = tsEcal->getReferencePoint()[2] +  tsEcal->getZ0() ;
-        //helix at ECal
-        DDMarlinCED::drawHelix(-bField, -charge, Xs, Ys, Zs, Px, Py, Pz, 1, 1,
-                             0xffb200, 0., 2100., 3000., 0);
 
 
     }

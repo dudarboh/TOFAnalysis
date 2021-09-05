@@ -27,7 +27,7 @@ class TOFAnalysis : public marlin::Processor {
         int _nEvent;
         int _pdg;
 
-        float dummy = std::numeric_limits<float>::min();
+        double dummy = std::numeric_limits<double>::min();
         ROOT::Math::XYZVectorF dummyVec = ROOT::Math::XYZVectorF(dummy, dummy, dummy);
         std::map< std::string, ROOT::Math::XYZVectorF > _tsPos = { {"ip", dummyVec}, {"first", dummyVec}, {"last", dummyVec}, {"ecal", dummyVec} };
         std::map< std::string, ROOT::Math::XYZVectorF > _tsMom = { {"ip", dummyVec}, {"first", dummyVec}, {"last", dummyVec}, {"ecal", dummyVec} };
@@ -48,7 +48,7 @@ class TOFAnalysis : public marlin::Processor {
         std::map< std::string, double > _mom = { {"hmSet", 0.}, {"hmEcal", 0.} };
 
         std::map< std::string, double > _trackLength = { {"set", dummy}, {"ecal", dummy}  };
-        std::map< std::string, double > _phiCurl = { {"set", dummy}, {"ecal", dummy}  };
+        std::map< std::string, double > _nCurls = { {"set", dummy}, {"ecal", dummy}  };
 
         double _smearings[5] = {0., 10., 30., 50., 100.};
         double _tofSetFront[5];
@@ -64,7 +64,6 @@ class TOFAnalysis : public marlin::Processor {
         dd4hep::Detector& _theDetector = dd4hep::Detector::getInstance();
         double _bField;
         double _tpcROuter;
-
 };
 
 

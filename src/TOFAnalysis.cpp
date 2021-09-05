@@ -48,8 +48,8 @@ void TOFAnalysis::init(){
 
     _tree->Branch("track_length_set", &_trackLength["set"]);
     _tree->Branch("track_length_ecal", &_trackLength["ecal"]);
-    _tree->Branch("phi_curl_set", &_phiCurl["set"]);
-    _tree->Branch("phi_curl_ecal", &_phiCurl["ecal"]);
+    _tree->Branch("n_curls_set", &_nCurls["set"]);
+    _tree->Branch("n_curls_ecal", &_nCurls["ecal"]);
 
     _tree->Branch("pos_set_hit", &_posSetHit);
     _tree->Branch("pos_closest", &_posClosest);
@@ -87,13 +87,10 @@ void TOFAnalysis::processEvent(LCEvent* evt){
     MarlinTrk::TrkSysConfig< MarlinTrk::IMarlinTrkSystem::CFG::useQMS> mson( _trkSystem, true );
     MarlinTrk::TrkSysConfig< MarlinTrk::IMarlinTrkSystem::CFG::usedEdx> elosson( _trkSystem, true);
     MarlinTrk::TrkSysConfig< MarlinTrk::IMarlinTrkSystem::CFG::useSmoothing> smoothon( _trkSystem, true);
-
     LCCollection* pfos = evt->getCollection("PandoraPFOs");
     LCRelationNavigator pfoToMc( evt->getCollection("RecoMCTruthLink") );
 
-    //Don't need for now.. Might need in the future
     LCRelationNavigator spPointToSimHit( evt->getCollection("SETSpacePointRelations") );
-    // LCRelationNavigator caloHitToSimHit( evt->getCollection("EcalBarrelRelationsSimRec") );
 
     for (int i=0; i<pfos->getNumberOfElements(); ++i){
         /////////////////////////////////// Load all info from PFO
@@ -121,13 +118,12 @@ void TOFAnalysis::processEvent(LCEvent* evt){
 
         if (_hasSetHit) _posSetHit.SetCoordinates( setHit->getPosition() );
 
-
         // if (_hasSetHit)
         const LCObjectVec& setSimHits = spPointToSimHit.getRelatedToObjects( setHit );
 
         /////////////////WRITE TRACK STATES/////////////////////////
         // should return at Ip, at First, at Last, at Calo
-        const vector<TrackState*> trackStates = track->getTrackStates();
+        const vector<TrackState*>& trackStates = track->getTrackStates();
         vector<string> tsNames{"ip", "first", "last", "ecal"};
 
         for(unsigned int j=0; j < trackStates.size(); ++j){
@@ -143,72 +139,114 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         }
 
         ///////////////////////WRITE TRACK LENGTHS/////////////////////
-
-        //This is how it should look like!!!!!!!!!
-        // getTracksToFit();
-        // getTrackStatesPerHit();
-        // getArcLengths
-        // just sum
-
-        //calculate track length
-        vector <TrackerHit*> trackHits = track->getTrackerHits();
-        //It is probably required by the fitter...
         auto sortByRho = [](TrackerHit* a, TrackerHit* b) {
             XYZVector posA, posB;
             posA.SetCoordinates( a->getPosition() );
             posB.SetCoordinates( b->getPosition() );
             return posA.rho() < posB.rho();
         };
-        sort(trackHits.begin(), trackHits.end(), sortByRho);
 
         auto getArcLength = [](double phi1, double phi2, double omega, double z1, double z2) {
-            double dPhi = abs(phi2-phi1);
+            double dPhi = std::abs(phi2-phi1);
             if (dPhi > M_PI) dPhi = 2*M_PI - dPhi;
-            return sqrt( pow(dPhi/omega, 2) + pow(z2-z1, 2) );
+            return std::sqrt( std::pow(dPhi/omega, 2) + std::pow(z2-z1, 2) );
         };
 
-        // setup initial dummy covariance matrix
-        vector<float> covMatrix(15);
-        // initialize variances
-        covMatrix[0]  = 1e+06; //sigma_d0^2
-        covMatrix[2]  = 100.; //sigma_phi0^2
-        covMatrix[5]  = 0.00001; //sigma_omega^2
-        covMatrix[9]  = 1e+06; //sigma_z0^2
-        covMatrix[14] = 100.; //sigma_tanl^2
-        double maxChi2PerHit = 100.;
-        MarlinTrk::IMarlinTrack* marlinTrk = _trkSystem->createTrack();
-        TrackImpl refittedTrack;
-
-        //Need to initialize trackState at last hit
-        TrackStateImpl preFit = *(track->getTrackState( TrackState::AtLastHit ));
-        preFit.setCovMatrix( covMatrix );
-        MarlinTrk::createFinalisedLCIOTrack(marlinTrk, trackHits, &refittedTrack, MarlinTrk::IMarlinTrack::backward, &preFit , _bField, maxChi2PerHit);
-        //fit is finished, collect the hits
-
-        vector<pair<TrackerHit*, double> > hitsInFit;
-        vector<pair<TrackerHit*, double> > outliers;
-        marlinTrk->getHitsInFit(hitsInFit);
-        marlinTrk->getOutliers(outliers);
-        _nFitHits = hitsInFit.size();
-
-        vector<TrackStateImpl> trackStatesPerHit;
-        trackStatesPerHit.push_back( *(dynamic_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtCalorimeter))));
-        //add track states at SET hit. If it doesn't exist, then it copies the most outer tpc hit (shouldn't affect track length)
-        trackStatesPerHit.push_back( *(dynamic_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtLastHit)) ) );
-
-        // loop over all hits in the order of how they were fitted (fitted backwards and hits sorted by rho).
-        int nHits = hitsInFit.size();
-        for(int j=0; j < nHits; ++j ){
-            TrackStateImpl ts;
-            double chi2Tmp;
-            int ndfTmp;
-            marlinTrk->getTrackState(hitsInFit[j].first, ts, chi2Tmp, ndfTmp);
-            trackStatesPerHit.push_back(ts);
+        //This is how it should look like!!!!!!!!!
+        // getTracksToFit();
+        vector<Track*> tracksToFit;
+        tracksToFit.push_back(track);
+        int nSubTracks = track->getTracks().size();
+        if (nSubTracks != 1){
+            int nHitsTot = track->getTrackerHits().size();
+            int nHits0 = track->getTracks()[0]->getTrackerHits().size();
+            int nHits1 = track->getTracks()[1]->getTrackerHits().size();
+            if( ((nHitsTot == nHits0 + nHits1) &&  !_hasSetHit) || ((nHitsTot == nHits0 + nHits1 + 1) && _hasSetHit )  ){
+                for(int j=2; j < nSubTracks; ++j) tracksToFit.push_back( track->getTracks()[j] );
+            }
+            else{
+                // This means VXD+SIT subTrack is not there (bug?!)! So we need to add tracks from i=1
+                for(int j=1; j < nSubTracks; ++j) tracksToFit.push_back( track->getTracks()[j] );
+            }
         }
-        trackStatesPerHit.push_back(*(dynamic_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtIP)) ));
+        // getTrackStatesPerHit();
+        vector<TrackStateImpl> trackStatesPerHit;
+        for(unsigned int j=0; j < tracksToFit.size(); ++j){
+            vector <TrackerHit*> trackHits = tracksToFit[j]->getTrackerHits();
+            sort(trackHits.begin(), trackHits.end(), sortByRho);
+            // setup initial dummy covariance matrix
+            vector<float> covMatrix(15);
+            // initialize variances
+            covMatrix[0]  = 1e+06; //sigma_d0^2
+            covMatrix[2]  = 100.; //sigma_phi0^2
+            covMatrix[5]  = 0.00001; //sigma_omega^2
+            covMatrix[9]  = 1e+06; //sigma_z0^2
+            covMatrix[14] = 100.; //sigma_tanl^2
+            double maxChi2PerHit = 100.;
+            MarlinTrk::IMarlinTrack* marlinTrk = _trkSystem->createTrack();
+            TrackImpl refittedTrack;
 
+            //Need to initialize trackState at last hit
+            TrackStateImpl preFit = *(tracksToFit[j]->getTrackState(TrackState::AtLastHit));
+            preFit.setCovMatrix( covMatrix );
+            MarlinTrk::createFinalisedLCIOTrack(marlinTrk, trackHits, &refittedTrack, MarlinTrk::IMarlinTrack::backward, &preFit , _bField, maxChi2PerHit);
+
+            if (j == 0) trackStatesPerHit.push_back(*(dynamic_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtIP)) ));
+
+            //fit is finished, collect the hits
+            vector<pair<TrackerHit*, double> > hitsInFit;
+            marlinTrk->getHitsInFit(hitsInFit);
+            if (j == 0){
+                //do reverse, so it increases in rho for the FIRST TRACK!!!!!
+                for( int k = hitsInFit.size() - 1; k >= 0 ; --k ){
+                    TrackStateImpl ts;
+                    double chi2Tmp;
+                    int ndfTmp;
+                    marlinTrk->getTrackState(hitsInFit[k].first, ts, chi2Tmp, ndfTmp);
+                    trackStatesPerHit.push_back(ts);
+                }
+            }
+            else{
+                // check which hit is closer to the previous hit. and iterate starting from that
+                TrackerHit* minRhoHit = hitsInFit.back().first;
+                TrackerHit* maxRhoHit = hitsInFit.front().first;
+                XYZVector minPos, maxPos;
+                XYZVectorF prevFitPos;
+                minPos.SetCoordinates(minRhoHit->getPosition());
+                maxPos.SetCoordinates(maxRhoHit->getPosition());
+                prevFitPos.SetCoordinates( trackStatesPerHit.back().getReferencePoint() );
+                if ( (minPos - prevFitPos).r() < (maxPos - prevFitPos).r() ){
+                    //iterate from minRho hit
+                    for( int k = hitsInFit.size() - 1; k >= 0 ; --k ){
+                        TrackStateImpl ts;
+                        double chi2Tmp;
+                        int ndfTmp;
+                        marlinTrk->getTrackState(hitsInFit[k].first, ts, chi2Tmp, ndfTmp);
+                        trackStatesPerHit.push_back(ts);
+                    }
+                }
+                else{
+                    //iterate from maxRho hit
+                    for(unsigned int k = 0; k < hitsInFit.size() ; ++k ){
+                        TrackStateImpl ts;
+                        double chi2Tmp;
+                        int ndfTmp;
+                        marlinTrk->getTrackState(hitsInFit[k].first, ts, chi2Tmp, ndfTmp);
+                        trackStatesPerHit.push_back(ts);
+                    }
+                }
+            }
+
+            if (j == tracksToFit.size() - 1){
+                //add track states at SET hit. If it doesn't exist, then it copies the most outer tpc hit (shouldn't affect track length as it is dublicate)
+                trackStatesPerHit.push_back( *(dynamic_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtLastHit)) ) );
+                trackStatesPerHit.push_back( *(dynamic_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtCalorimeter) ) ) );
+            }
+            delete marlinTrk;
+        }
+        // getArcLengths
         vector<double> phi, omega, z, arcLength, arcCurl, p, d0, z0, tanL, pWeighted;
-        for(size_t j=0; j < trackStatesPerHit.size(); ++j ){
+        for(unsigned int j=0; j < trackStatesPerHit.size(); ++j ){
             phi.push_back( trackStatesPerHit[j].getPhi() );
             d0.push_back( trackStatesPerHit[j].getD0() );
             z0.push_back( trackStatesPerHit[j].getZ0() );
@@ -222,42 +260,51 @@ void TOFAnalysis::processEvent(LCEvent* evt){
             p.push_back( mom.r() );
             //can't calculate track length from 1 element
             if (j == 0) continue;
-            arcLength.push_back( getArcLength( phi[j-1], phi[j], omega[j-1], z[j-1], z[j] ) );
+            //for this we need to check if last arc between lastHit and Ecal less than pi
+            if (j == trackStatesPerHit.size() - 1){
+                double dLastHitToCalo = std::abs( (z[j] - z[j-1]) / tanL[j-1]);
+                if( dLastHitToCalo > M_PI / std::abs(omega[j-1]) ){
+                    // we cannot calculate with delta phi formula. Let's use formula with only dz assuming constant curvature
+                    arcLength.push_back(std::abs(z[j] - z[j-1]) * std::sqrt( 1. + 1./(tanL[j-1]*tanL[j-1]) ) );
+                    arcCurl.push_back( dLastHitToCalo * std::abs(omega[j-1]) );
+                    pWeighted.push_back( arcLength[j] /(p[j]*p[j]) );
+                    continue;
+                }
+            }
 
-            double deltaPhi = abs(phi[j] - phi[j-1]);
+            arcLength.push_back( getArcLength( phi[j-1], phi[j], omega[j-1], z[j-1], z[j] ) );
+            double deltaPhi = std::abs(phi[j] - phi[j-1]);
             if (deltaPhi > M_PI) deltaPhi = 2*M_PI - deltaPhi;
             arcCurl.push_back( deltaPhi );
-
             pWeighted.push_back( arcLength[j] /(p[j]*p[j]) );
         }
 
-        _trackLength["set"] = std::accumulate(arcLength.begin() + 1, arcLength.end(), 0.);
+        // just sum
+        _trackLength["set"] = std::accumulate(arcLength.begin(), arcLength.end() - 1, 0.);
         _trackLength["ecal"] = std::accumulate(arcLength.begin(), arcLength.end(), 0.);
 
-        _phiCurl["set"] = std::accumulate(arcCurl.begin() + 1, arcCurl.end(), 0.);
-        _phiCurl["ecal"] = std::accumulate(arcCurl.begin(), arcCurl.end(), 0.);
 
-        _mom["hmSet"] = std::sqrt(_trackLength["set"] / accumulate(pWeighted.begin() + 1, pWeighted.end(), 0.) );
-        _mom["hmEcal"] = std::sqrt(_trackLength["ecal"] / accumulate(pWeighted.begin(), pWeighted.end(), 0.) );
+        _nCurls["set"] = std::accumulate(arcCurl.begin(), arcCurl.end() - 1, 0.)/(2.*M_PI);
+        _nCurls["ecal"] = std::accumulate(arcCurl.begin(), arcCurl.end(), 0.)/(2.*M_PI);
 
-        // if (_trackLength["ecal"] - _trackLength["set"] < 0 || _trackLength["ecal"] - _trackLength["set"] > 100.){
-            // if (_trackLength["ecal"] > 7000.){
-            // DDMarlinCED::newEvent(this);
-            // DDMarlinCED::drawDD4hepDetector(_theDetector, 0, vector<string>{"SIT", "SET"});
-            // DDCEDPickingHandler& pHandler=DDCEDPickingHandler::getInstance();
-            // pHandler.update(evt);
-            // TOFAnaUtils::drawPfo(track, cluster);
+        _mom["hmSet"] = std::sqrt(_trackLength["set"] / std::accumulate(pWeighted.begin(), pWeighted.end() - 1, 0.) );
+        _mom["hmEcal"] = std::sqrt(_trackLength["ecal"] / std::accumulate(pWeighted.begin(), pWeighted.end(), 0.) );
 
-            // cout<<"_trackLength_set="<<_trackLength["set"]<<endl;
-            // cout<<"_trackLength_ecal="<<_trackLength["ecal"]<<endl;
-            // cout<<"_phiCurl_set="<<_phiCurl["set"]<<endl;
-            // cout<<"_phiCurl_ecal="<<_phiCurl["ecal"]<<endl;
-            // cout<<"ptAtIP="<<_tsMom["ip"].rho()<<endl;
+        if (_trackLength["set"] > 20000.){
+            DDMarlinCED::newEvent(this);
+            DDMarlinCED::drawDD4hepDetector(_theDetector, 0, vector<string>{});
+            DDCEDPickingHandler& pHandler=DDCEDPickingHandler::getInstance();
+            pHandler.update(evt);
+            TOFAnaUtils::drawPfo(track, cluster);
 
-            // DDMarlinCED::draw(this, 1);
+            cout<<"_trackLength_set="<<_trackLength["set"]<<endl;
+            cout<<"_trackLength_ecal="<<_trackLength["ecal"]<<endl;
+            cout<<"_nCurls_set="<<_nCurls["set"]<<endl;
+            cout<<"_nCurls_ecal="<<_nCurls["ecal"]<<endl;
+            cout<<"ptAtIP="<<_tsMom["ip"].rho()<<endl;
 
-        // }
-        // if (_phiCurl["ecal"] > M_PI) drawTrack(track);
+            DDMarlinCED::draw(this, 1);
+        }
 
         SimTrackerHit* setSimHitFront = nullptr;
         SimTrackerHit* setSimHitBack = nullptr;
