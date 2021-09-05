@@ -81,7 +81,7 @@ void TOFAnalysis::init(){
 
 void TOFAnalysis::processEvent(LCEvent* evt){
     ++_nEvent;
-    streamlog_out(MESSAGE)<<"****** Event: "<<_nEvent<<endl;
+    streamlog_out(MESSAGE)<<"******Event****** "<<_nEvent<<endl;
 
     // set the correct configuration for the tracking system for this event
     MarlinTrk::TrkSysConfig< MarlinTrk::IMarlinTrkSystem::CFG::useQMS> mson( _trkSystem, true );
@@ -108,6 +108,7 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         const vector<Track*>& tracks = pfo->getTracks();
         if(tracks.size() != 1) continue;
         Track* track = tracks.at(0);
+        _nFitHits = 0;
 
         TrackerHit* setHit = TOFAnaUtils::getSetHit(track, _tpcROuter);
         _hasSetHit = (setHit != nullptr);
@@ -189,13 +190,17 @@ void TOFAnalysis::processEvent(LCEvent* evt){
             //Need to initialize trackState at last hit
             TrackStateImpl preFit = *(tracksToFit[j]->getTrackState(TrackState::AtLastHit));
             preFit.setCovMatrix( covMatrix );
-            MarlinTrk::createFinalisedLCIOTrack(marlinTrk, trackHits, &refittedTrack, MarlinTrk::IMarlinTrack::backward, &preFit , _bField, maxChi2PerHit);
+            int errorFit = MarlinTrk::createFinalisedLCIOTrack(marlinTrk, trackHits, &refittedTrack, MarlinTrk::IMarlinTrack::backward, &preFit , _bField, maxChi2PerHit);
+            int ndfTest;
+            marlinTrk->getNDF(ndfTest);
+            if (errorFit == 1) continue;
 
             if (j == 0) trackStatesPerHit.push_back(*(dynamic_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtIP)) ));
 
             //fit is finished, collect the hits
             vector<pair<TrackerHit*, double> > hitsInFit;
             marlinTrk->getHitsInFit(hitsInFit);
+            _nFitHits += hitsInFit.size();
             if (j == 0){
                 //do reverse, so it increases in rho for the FIRST TRACK!!!!!
                 for( int k = hitsInFit.size() - 1; k >= 0 ; --k ){
@@ -280,29 +285,27 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         }
 
         // just sum
-        _trackLength["set"] = std::accumulate(arcLength.begin(), arcLength.end() - 1, 0.);
+        if (trackStatesPerHit.size() != 0){
+            _trackLength["set"] = std::accumulate(arcLength.begin(), arcLength.end() - 1, 0.);
+            _nCurls["set"] = std::accumulate(arcCurl.begin(), arcCurl.end() - 1, 0.)/(2.*M_PI);
+            _mom["hmSet"] = std::sqrt(_trackLength["set"] / std::accumulate(pWeighted.begin(), pWeighted.end() - 1, 0.) );
+        }
+        else{
+            _trackLength["set"] = 0.;
+            _nCurls["set"] = 0.;
+            _mom["hmSet"] = 0.;
+        }
+
         _trackLength["ecal"] = std::accumulate(arcLength.begin(), arcLength.end(), 0.);
-
-
-        _nCurls["set"] = std::accumulate(arcCurl.begin(), arcCurl.end() - 1, 0.)/(2.*M_PI);
         _nCurls["ecal"] = std::accumulate(arcCurl.begin(), arcCurl.end(), 0.)/(2.*M_PI);
-
-        _mom["hmSet"] = std::sqrt(_trackLength["set"] / std::accumulate(pWeighted.begin(), pWeighted.end() - 1, 0.) );
         _mom["hmEcal"] = std::sqrt(_trackLength["ecal"] / std::accumulate(pWeighted.begin(), pWeighted.end(), 0.) );
 
-        if (_trackLength["set"] > 20000.){
+        if (false){
             DDMarlinCED::newEvent(this);
             DDMarlinCED::drawDD4hepDetector(_theDetector, 0, vector<string>{});
             DDCEDPickingHandler& pHandler=DDCEDPickingHandler::getInstance();
             pHandler.update(evt);
             TOFAnaUtils::drawPfo(track, cluster);
-
-            cout<<"_trackLength_set="<<_trackLength["set"]<<endl;
-            cout<<"_trackLength_ecal="<<_trackLength["ecal"]<<endl;
-            cout<<"_nCurls_set="<<_nCurls["set"]<<endl;
-            cout<<"_nCurls_ecal="<<_nCurls["ecal"]<<endl;
-            cout<<"ptAtIP="<<_tsMom["ip"].rho()<<endl;
-
             DDMarlinCED::draw(this, 1);
         }
 

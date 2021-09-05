@@ -1,13 +1,11 @@
 <marlin>
 
     <constants>
-
     </constants>
 
     <global>
 		<parameter name="LCIOInputFiles">
-            <!-- /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/250-SetA/2f_hadronic_eR_pL/ILD_l5_o1_v02/v02-02/00015164/000/rv02-02.sv02-02.mILD_l5_o1_v02.E250-SetA.I500012.P2f_z_h.eR.pL.n000_001.d_rec_00015164_310.slcio -->
-            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/250-SetA/2f_hadronic_eL_pR/ILD_l5_o1_v02/v02-02/00015161/000/rv02-02.sv02-02.mILD_l5_o1_v02.E250-SetA.I500010.P2f_z_h.eL.pR.n000_125.d_rec_00015161_456.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/250-SetA/2f_hadronic_eR_pL/ILD_l5_o1_v02/v02-02/00015164/000/rv02-02.sv02-02.mILD_l5_o1_v02.E250-SetA.I500012.P2f_z_h.eR.pL.n000_111.d_rec_00015164_58.slcio
         </parameter>
 		<parameter name="MaxRecordNumber" value="0" />
         <parameter name="SupressCheck" value="false" />
@@ -34,7 +32,7 @@
 
     <processor name="MyTOFAnalysis" type="TOFAnalysis">
         <!-- verbosity level of this processor ("DEBUG0-4,MESSAGE0-4,WARNING0-4,ERROR0-4,SILENT") -->
-        <parameter name="Verbosity" type="string">DEBUG6</parameter>
+        <parameter name="Verbosity" type="string">MESSAGE</parameter>
     </processor>
 
     <processor name="MyRefitProcessorProton" type="RefitProcessor">
