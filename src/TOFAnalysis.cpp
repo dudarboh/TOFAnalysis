@@ -191,9 +191,7 @@ void TOFAnalysis::processEvent(LCEvent* evt){
             TrackStateImpl preFit = *(tracksToFit[j]->getTrackState(TrackState::AtLastHit));
             preFit.setCovMatrix( covMatrix );
             int errorFit = MarlinTrk::createFinalisedLCIOTrack(marlinTrk, trackHits, &refittedTrack, MarlinTrk::IMarlinTrack::backward, &preFit , _bField, maxChi2PerHit);
-            int ndfTest;
-            marlinTrk->getNDF(ndfTest);
-            if (errorFit == 1) continue;
+            if (errorFit != 0) continue;
 
             if (j == 0) trackStatesPerHit.push_back(*(dynamic_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtIP)) ));
 
@@ -241,7 +239,6 @@ void TOFAnalysis::processEvent(LCEvent* evt){
                     }
                 }
             }
-
             if (j == tracksToFit.size() - 1){
                 //add track states at SET hit. If it doesn't exist, then it copies the most outer tpc hit (shouldn't affect track length as it is dublicate)
                 trackStatesPerHit.push_back( *(dynamic_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtLastHit)) ) );
