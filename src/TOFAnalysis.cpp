@@ -34,8 +34,6 @@ void TOFAnalysis::init(){
     _tree->Branch("has_set_hit", &_hasSetHit);
     _tree->Branch("n_ecal_hits", &_nEcalHits);
     _tree->Branch("n_fit_hits", &_nFitHits);
-    _tree->Branch("sub_track_0", &_subTrack0);
-    _tree->Branch("sub_track_1", &_subTrack1);
 
     vector<string> tsNames{"ip", "first", "last", "ecal"};
     for (auto ts : tsNames){
@@ -84,7 +82,7 @@ void TOFAnalysis::init(){
 void TOFAnalysis::processEvent(LCEvent* evt){
     ++_nEvent;
     streamlog_out(MESSAGE)<<"******Event****** "<<_nEvent<<endl;
-    if(_nEvent != 345) return;
+
     // set the correct configuration for the tracking system for this event
     MarlinTrk::TrkSysConfig< MarlinTrk::IMarlinTrkSystem::CFG::useQMS> mson( _trkSystem, true );
     MarlinTrk::TrkSysConfig< MarlinTrk::IMarlinTrkSystem::CFG::usedEdx> elosson( _trkSystem, true);
@@ -111,8 +109,6 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         if(tracks.size() != 1) continue;
         Track* track = tracks.at(0);
         _nFitHits = 0;
-        _subTrack0 = 0;
-        _subTrack1 = 0;
         streamlog_out(DEBUG8)<<"******************* PFO "<<i<<" *******************"<<endl;
         streamlog_out(DEBUG8)<<"Track has "<<track->getTracks().size()<<" subtracks"<<endl;
         streamlog_out(DEBUG8)<<"Track has "<<track->getTrackerHits().size()<<" hits"<<endl;
@@ -128,8 +124,6 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         streamlog_out(DEBUG8)<<"SET not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-2]<<endl;
 
         for(unsigned int j=0; j<track->getTracks().size(); ++j){
-            if (j == 0) _subTrack0 = track->getTracks()[0]->getTrackerHits().size();
-            if (j == 1) _subTrack1 = track->getTracks()[1]->getTrackerHits().size();
             streamlog_out(DEBUG8)<<"subTrack j="<<j<<" has "<<track->getTracks()[j]->getTrackerHits().size()<<" hits"<<endl;
         }
 
@@ -355,7 +349,7 @@ void TOFAnalysis::processEvent(LCEvent* evt){
         _nCurls["ecal"] = std::accumulate(arcCurl.begin(), arcCurl.end(), 0.)/(2.*M_PI);
         _mom["hmEcal"] = std::sqrt(_trackLength["ecal"] / std::accumulate(pWeighted.begin(), pWeighted.end(), 0.) );
 
-        if ( _nCurls["ecal"] > .6 && std::abs(_tsPos["ecal"].z()) < 2385. ){
+        if ( false ){
             DDMarlinCED::newEvent(this);
             DDMarlinCED::drawDD4hepDetector(_theDetector, 0, vector<string>{});
             DDCEDPickingHandler& pHandler=DDCEDPickingHandler::getInstance();

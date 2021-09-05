@@ -27,9 +27,6 @@ class TOFAnalysis : public marlin::Processor {
         int _nEvent;
         int _pdg;
 
-        int _subTrack0;
-        int _subTrack1;
-
         double dummy = std::numeric_limits<double>::min();
         ROOT::Math::XYZVectorF dummyVec = ROOT::Math::XYZVectorF(dummy, dummy, dummy);
         std::map< std::string, ROOT::Math::XYZVectorF > _tsPos = { {"ip", dummyVec}, {"first", dummyVec}, {"last", dummyVec}, {"ecal", dummyVec} };
