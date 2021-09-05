@@ -179,28 +179,17 @@ namespace TOFAnaUtils{
             }
         }
 
-        // streamlog_out( DEBUG6 ) << " -- Final LCIO Track has "<<nSubTracks<< " subtracks - will use these for displaying hits "<< std::endl ;
-        // if ( nSubTracks == 0 ) return;
-        //
-        // // std::copy( track->getTrackerHits().begin() , track->getTrackerHits().end() , std::back_inserter(  hits ) ) ;
-        // cout<<"Track hits size:"<<track->getTrackerHits().size()<<endl;
-        // cout<<"N subdetectors:"<<track->getSubdetectorHitNumbers().size()<<endl;
-        // cout<<"VXD used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::VXD)*2-2]<<endl;
-        // cout<<"VXD not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::VXD)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::VXD)*2-2]<<endl;
-        // cout<<"SIT used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SIT)*2-2]<<endl;
-        // cout<<"SIT not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SIT)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::SIT)*2-2]<<endl;
-        // cout<<"FTD used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::FTD)*2-2]<<endl;
-        // cout<<"FTD not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::FTD)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::FTD)*2-2]<<endl;
-        // cout<<"TPC used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-2]<<endl;
-        // cout<<"TPC not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-2]<<endl;
-        // cout<<"SET used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-2]<<endl;
-        // cout<<"SET not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-2]<<endl;
 
+        streamlog_out( MESSAGE ) << " -- Final LCIO Track has "<<nSubTracks<< " subtracks"<< std::endl ;
+        for(unsigned int i=0; i < nSubTracks; ++i){
+            const Track* subTrack = track->getTracks()[i];
+            streamlog_out( MESSAGE ) <<"subTrack i="<<i <<" n Hits "<<subTrack->getTrackerHits().size()<< " subtracks"<< std::endl ;
+
+        }
         for(unsigned int i=0; i < subTracks.size(); ++i){
-            // std::copy( subTrack->getTrackerHits().begin() , subTrack->getTrackerHits().end() , std::back_inserter(  hits ) ) ;
             const Track* subTrack = subTracks[i];
             int nHits = subTrack->getTrackerHits().size();
-            streamlog_out( DEBUG6 ) << " -- subTrack i= "<< i << " has " <<  nHits << " hits and "<< endl;
+            streamlog_out( MESSAGE ) << " --Adding subTrack i= "<< i << " has " <<  nHits << " hits "<< endl;
             for (int j = 0; j < nHits; ++j) {
                 TrackerHit* hit = subTrack->getTrackerHits()[j];
                 XYZVector hitPos;

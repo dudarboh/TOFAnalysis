@@ -1,5 +1,13 @@
 import ROOT
 
+ROOT.gStyle.SetOptStat(10)
+ROOT.gStyle.SetMarkerStyle(0)
+ROOT.gStyle.SetPadGridX(1)
+ROOT.gStyle.SetPadGridY(1)
+ROOT.gStyle.SetNdivisions(512)
+ROOT.gStyle.SetNdivisions(512, "Y")
+canvas = ROOT.TCanvas()
+
 ROOT.gInterpreter.Declare('''
 
 #include "TRandom3.h"
@@ -13,7 +21,29 @@ ch = ROOT.TChain("TOFAnalysis")
 
 ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
 
-df = ROOT.RDataFrame(ch).Filter("n_ecal_hits > 0 && abs(ts_ecal_z0) < 1.")
+
+
+df = ROOT.RDataFrame(ch)
+
+
+# h1 = df.Filter("std::abs( ts_ecal_pos.z() ) < 2385.").Histo1D(("h1", "Barrel;N ECal hits;N PFO", 150, 0, 150,), "n_ecal_hits" )
+# h2 = df.Filter("std::abs( ts_ecal_pos.z() ) >= 2385.").Histo1D(("h2", "Endcap;N ECal hits;N PFO", 150, 0, 150,), "n_ecal_hits" )
+h1 = df.Filter("std::abs( ts_ecal_pos.z() ) < 2385.").Histo1D(("h1", "Barrel;N curls;N PFO", 1000, 0, 5,), "n_curls_ecal" )
+h2 = df.Filter("std::abs( ts_ecal_pos.z() ) >= 2385.").Histo1D(("h2", "Endcap;N curls;N PFO", 1000, 0, 5,), "n_curls_ecal" )
+
+h2.SetLineColor(2)
+h1.Draw()
+h2.Draw("sames")
+
+canvas.BuildLegend()
+canvas.Update()
+input("wait")
+
+
+
+
+
+df = df.Filter("n_ecal_hits > 0 && abs(ts_ecal_z0) < 1.")
 df = df.Filter("abs(ts_ecal_pos.z()) > 2385.")
 df = df.Define("mom", "ts_ecal_mom.r()")
 
@@ -21,7 +51,6 @@ canvas = ROOT.TCanvas()
 canvas.SetGridx()
 canvas.SetGridy()
 ROOT.gStyle.SetMarkerStyle(0)
-ROOT.gStyle.SetOptStat(10)
 
 # hz = df.Histo1D(("hz", "TrackAtEcal.z0", 6000, -3000, 3000), "ts_ecal_z0")
 # hz.Draw()
