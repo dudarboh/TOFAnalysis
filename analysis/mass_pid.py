@@ -167,379 +167,26 @@ def get_curves(df, mom_str, method, n_mom_bins=50, to_draw=True):
 
 
 df = ROOT.RDataFrame("TOFAnalysis", "/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
-df = df.Filter("n_ecal_hits > 0 && abs(ts_ecal_pos.z()) < 2385. && abs(ts_ecal_z0) < 1.")\
+df = df.Filter("n_ecal_hits > 0 && abs(ts_ecal_pos.z()) < 2385. && (ts_ecal_pos - pos_closest).r() < 4000.")\
         .Define("mom_ip", "ts_ip_mom.r()")\
         .Define("mom_ecal", "ts_ecal_mom.r()")\
-        .Define("mom_tanL", "sqrt(mom2_hm_TanL)")\
-        .Define("mom_dz", "sqrt(mom2_hm_dz)")
 
-df = df.Define("beta_ip", "track_length_ip/(tof_closest_0*SPEED_OF_LIGHT)")\
-       .Define("beta_ecal", "track_length_calo/(tof_closest_0*SPEED_OF_LIGHT)")\
-       .Define("mass_ip", "mom_ip / beta_ip * sqrt(1. - beta_ip*beta_ip)")\
-       .Define("mass_ecal", "mom_ecal / beta_ecal * sqrt(1. - beta_ecal*beta_ecal)")\
-       .Define("mass_tanL", "sqrt(2. * mom2_hm_TanL * (SPEED_OF_LIGHT*tof_closest_0/track_length_refit_tanL - 1.))")\
-       .Define("mass_z", "sqrt(2. * mom2_hm_dz * (SPEED_OF_LIGHT*tof_closest_0/track_length_refit_z - 1.))")
+df = df.Define("beta", "track_length_ecal/(tof_closest_0*SPEED_OF_LIGHT)")\
+       .Define("mass_ip", "mom_ip / beta * sqrt(1. - beta*beta)")\
+       .Define("mass_ecal", "mom_ecal / beta * sqrt(1. - beta*beta)")\
+       .Define("mass", "std::sqrt(2*mom_ecal*mom_ecal*(1./beta - 1.))")
 
 
 
 # gr_ip, gr_diff_ip, gr_sep_ip = get_curves(df, "mom_ip", "mass_ip", n_mom_bins=50, to_draw=False)
 # gr_ecal, gr_diff_ecal, gr_sep_ecal = get_curves(df, "mom_ecal", "mass_ecal", n_mom_bins=50, to_draw=False)
 # gr_tanL, gr_diff_tanL, gr_sep_tanL = get_curves(df, "mom_tanL", "mass_tanL", n_mom_bins=50, to_draw=False)
-# gr_z, gr_diff_z, gr_sep_z = get_curves(df, "mom_dz", "mass_z", n_mom_bins=50, to_draw=False)
+gr, gr_diff, gr_sep = get_curves(df, "mom_ecal", "mass", n_mom_bins=50, to_draw=True)
 
-
-def plot_ip_matrix():
-    gr_ip, gr_diff_ip, gr_sep_ip = get_curves(df, "mom_ip", "mass_ip", n_mom_bins=50, to_draw=False)
-    file = ROOT.TFile("/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
-    tree = file.TOFAnalysis
-
-    speed_of_light = 299.792458
-    n_points = gr_ip[211].GetN()
-    mom_bins = []
-    for i in range(n_points):
-        mom_bins.append(gr_ip[211].GetPointX(i))
-    mom_bins = np.array(mom_bins)
-
-    h = ROOT.TH2F("name", "title; x; y", 4, 0, 4, 4, 0, 4)
-    ROOT.gStyle.SetPaintTextFormat(".3f")
-    h.SetMarkerSize(2)
-    h.GetXaxis().SetBinLabel(1, "#pi^{#pm}_{true}")
-    h.GetXaxis().SetBinLabel(2, "K^{#pm}_{true}")
-    h.GetXaxis().SetBinLabel(3, "p_{true}")
-    h.GetXaxis().SetBinLabel(4, "other")
-
-    h.GetYaxis().SetBinLabel(1, "#pi^{#pm}_{reco}")
-    h.GetYaxis().SetBinLabel(2, "K^{#pm}_{reco}")
-    h.GetYaxis().SetBinLabel(3, "p_{reco}")
-    h.GetYaxis().SetBinLabel(4, "undefined")
-
-    for i, pfo in enumerate(tree):
-
-        # if i > 200000:
-            # break
-        if i%10000 == 0:
-            print("Event", i)
-
-        if not (pfo.n_ecal_hits > 0 and abs(pfo.ts_ecal_pos.z()) < 2385. and abs(pfo.ts_ecal_z0) < 1.):
-            continue
-
-        pdg = pfo.pdg
-        if abs(pdg) == 211:
-            fillx = 0
-        elif abs(pdg) == 321:
-            fillx = 1
-        elif abs(pdg) == 2212:
-            fillx = 2
-        else:
-            fillx = 3
-        mom_ip = pfo.ts_ip_mom.r()
-        if mom_ip > 10. or mom_ip < 1.:
-            continue
-        min_idx = int(np.argmin( abs(mom_bins - mom_ip) ))
-
-        tof_ip = pfo.tof_closest_0
-
-        length_ip = pfo.track_length_ip
-        beta_ip = length_ip / (tof_ip*speed_of_light)
-
-        if 1. - beta_ip*beta_ip < 0:
-            h.Fill(fillx, 3)
-            continue
-        mass_reco = mom_ip / beta_ip * math.sqrt(1. - beta_ip*beta_ip)
-
-
-        prob_pi = 1. - math.erf( abs( mass_reco - gr_ip[211].Eval(mom_ip) ) / gr_ip[211].GetErrorY( min_idx ) /math.sqrt(2))
-        prob_k = 1. - math.erf( abs( mass_reco - gr_ip[321].Eval(mom_ip) ) / gr_ip[321].GetErrorY( min_idx ) /math.sqrt(2))
-        prob_p = 1. - math.erf( abs( mass_reco - gr_ip[2212].Eval(mom_ip) ) / gr_ip[2212].GetErrorY( min_idx )/math.sqrt(2))
-        if prob_pi == 0 and prob_k == 0 and prob_p == 0:
-            h.Fill(fillx, 3)
-            continue
-        filly = int( np.argmax(np.array([prob_pi, prob_k, prob_p])) )
-
-        h.Fill(fillx, filly)
-
-
-        # print("********new pfo************")
-        # print("PDG", pdg)
-        # print("Momentum", mom_ip)
-        # print("Momentum bin", min_idx)
-        # print("tof", tof_ip)
-        # print("length", length_ip)
-        # print("beta", beta_ip)
-        # print("mass reco", mass_reco)
-        # print("")
-        # print("diff to pion", abs( mass_reco - gr_ip[211].Eval(mom_ip) ))
-        # print("diff to kaon", abs( mass_reco - gr_ip[321].Eval(mom_ip) ))
-        # print("diff to proton", abs( mass_reco - gr_ip[2212].Eval(mom_ip) ))
-        # print("")
-        # print("sigma_diff to pion", abs( mass_reco - gr_ip[211].Eval(mom_ip) )/ gr_ip[211].GetErrorY( min_idx ) )
-        # print("sigma_diff to kaon", abs( mass_reco - gr_ip[321].Eval(mom_ip) )/ gr_ip[211].GetErrorY( min_idx ) )
-        # print("sigma_diff to proton", abs( mass_reco - gr_ip[2212].Eval(mom_ip) )/ gr_ip[211].GetErrorY( min_idx ) )
-        # print("")
-        # print("Prob pi", prob_pi)
-        # print("Prob k", prob_k)
-        # print("Prob p", prob_p)
-        # input("wait")
-    h.Scale(1./h.GetEntries())
-    h.Draw("colz text")
-
-    eff = {}
-    pur = {}
-    names = ["total true pi", "total true K", "total true protons", "total true others"]
-    for i in range(1, 5):
-        n_total = 0.
-        for j in range(1, 5):
-            n_total += h.GetBinContent(i, j)
-        print(names[i-1], h.GetBinContent(i, i),"/",n_total, "  efficiency", h.GetBinContent(i, i)/n_total * 100)
-        eff[names[i-1]] = h.GetBinContent(i, i)/n_total
-
-    names = ["total reco pi", "total reco K", "total reco protons", "total undefined"]
-    for i in range(1, 5):
-        n_total = 0.
-        for j in range(1, 5):
-            n_total += h.GetBinContent(j, i)
-        print(names[i-1], h.GetBinContent(i, i),"/",n_total, "  purity", h.GetBinContent(i, i)/n_total * 100)
-        pur[names[i-1]] = h.GetBinContent(i, i) / n_total
-
-
-    input("wait")
-
-
-def plot_ecal_matrix():
-    gr, gr_diff, gr_sep = get_curves(df, "mom_ecal", "mass_ecal", n_mom_bins=50, to_draw=False)
-    file = ROOT.TFile("/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
-    tree = file.TOFAnalysis
-
-    speed_of_light = 299.792458
-    n_points = gr[211].GetN()
-    mom_bins = []
-    for i in range(n_points):
-        mom_bins.append(gr[211].GetPointX(i))
-    mom_bins = np.array(mom_bins)
-
-    h = ROOT.TH2F("name", ";;", 4, 0, 4, 4, 0, 4)
-    ROOT.gStyle.SetPaintTextFormat(".3f")
-    h.SetMarkerSize(2)
-    h.GetXaxis().SetBinLabel(1, "#pi^{#pm}_{true}")
-    h.GetXaxis().SetBinLabel(2, "K^{#pm}_{true}")
-    h.GetXaxis().SetBinLabel(3, "p_{true}")
-    h.GetXaxis().SetBinLabel(4, "other")
-
-    h.GetYaxis().SetBinLabel(1, "#pi^{#pm}_{reco}")
-    h.GetYaxis().SetBinLabel(2, "K^{#pm}_{reco}")
-    h.GetYaxis().SetBinLabel(3, "p_{reco}")
-    h.GetYaxis().SetBinLabel(4, "undefined")
-
-    for i, pfo in enumerate(tree):
-
-        # if i > 200000:
-            # break
-        if i%10000 == 0:
-            print("Event", i)
-
-        if not (pfo.n_ecal_hits > 0 and abs(pfo.ts_ecal_pos.z()) < 2385. and abs(pfo.ts_ecal_z0) < 1.):
-            continue
-        mom = pfo.ts_ecal_mom.r()
-        if mom > 10. or mom < 1.:
-            continue
-
-        pdg = pfo.pdg
-        if abs(pdg) == 211:
-            fillx = 0
-        elif abs(pdg) == 321:
-            fillx = 1
-        elif abs(pdg) == 2212:
-            fillx = 2
-        else:
-            fillx = 3
-        min_idx = int(np.argmin( abs(mom_bins - mom) ))
-
-        tof = pfo.tof_closest_0
-
-        length = pfo.track_length_calo
-        beta = length / (tof*speed_of_light)
-
-        if 1. - beta*beta < 0:
-            h.Fill(fillx, 3)
-            continue
-        mass_reco = mom / beta * math.sqrt(1. - beta*beta)
-
-
-        prob_pi = 1. - math.erf( abs( mass_reco - gr[211].Eval(mom) ) / gr[211].GetErrorY( min_idx ) /math.sqrt(2))
-        prob_k = 1. - math.erf( abs( mass_reco - gr[321].Eval(mom) ) / gr[321].GetErrorY( min_idx ) /math.sqrt(2))
-        prob_p = 1. - math.erf( abs( mass_reco - gr[2212].Eval(mom) ) / gr[2212].GetErrorY( min_idx )/math.sqrt(2))
-        if prob_pi == 0 and prob_k == 0 and prob_p == 0:
-            h.Fill(fillx, 3)
-            continue
-        filly = int( np.argmax(np.array([prob_pi, prob_k, prob_p])) )
-
-        h.Fill(fillx, filly)
-
-
-        # print("********new pfo************")
-        # print("PDG", pdg)
-        # print("Momentum", mom_ip)
-        # print("Momentum bin", min_idx)
-        # print("tof", tof_ip)
-        # print("length", length_ip)
-        # print("beta", beta_ip)
-        # print("mass reco", mass_reco)
-        # print("")
-        # print("diff to pion", abs( mass_reco - gr_ip[211].Eval(mom_ip) ))
-        # print("diff to kaon", abs( mass_reco - gr_ip[321].Eval(mom_ip) ))
-        # print("diff to proton", abs( mass_reco - gr_ip[2212].Eval(mom_ip) ))
-        # print("")
-        # print("sigma_diff to pion", abs( mass_reco - gr_ip[211].Eval(mom_ip) )/ gr_ip[211].GetErrorY( min_idx ) )
-        # print("sigma_diff to kaon", abs( mass_reco - gr_ip[321].Eval(mom_ip) )/ gr_ip[211].GetErrorY( min_idx ) )
-        # print("sigma_diff to proton", abs( mass_reco - gr_ip[2212].Eval(mom_ip) )/ gr_ip[211].GetErrorY( min_idx ) )
-        # print("")
-        # print("Prob pi", prob_pi)
-        # print("Prob k", prob_k)
-        # print("Prob p", prob_p)
-        # input("wait")
-    h.Scale(1./h.GetEntries())
-    h.Draw("colz text")
-
-    eff = {}
-    pur = {}
-    names = ["total true pi", "total true K", "total true protons", "total true others"]
-    for i in range(1, 5):
-        n_total = 0.
-        for j in range(1, 5):
-            n_total += h.GetBinContent(i, j)
-        print(names[i-1], h.GetBinContent(i, i),"/",n_total, "  efficiency", h.GetBinContent(i, i)/n_total * 100)
-        eff[names[i-1]] = h.GetBinContent(i, i)/n_total
-
-    names = ["total reco pi", "total reco K", "total reco protons", "total undefined"]
-    for i in range(1, 5):
-        n_total = 0.
-        for j in range(1, 5):
-            n_total += h.GetBinContent(j, i)
-        print(names[i-1], h.GetBinContent(i, i),"/",n_total, "  purity", h.GetBinContent(i, i)/n_total * 100)
-        pur[names[i-1]] = h.GetBinContent(i, i) / n_total
-
-
-    input("wait")
-
-
-def plot_tanL_matrix():
-    gr, gr_diff, gr_sep = get_curves(df, "mom_tanL", "mass_tanL", n_mom_bins=50, to_draw=False)
-    file = ROOT.TFile("/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
-    tree = file.TOFAnalysis
-
-    speed_of_light = 299.792458
-    n_points = gr[211].GetN()
-    mom_bins = []
-    for i in range(n_points):
-        mom_bins.append(gr[211].GetPointX(i))
-    mom_bins = np.array(mom_bins)
-
-    h = ROOT.TH2F("name", ";;", 4, 0, 4, 4, 0, 4)
-    ROOT.gStyle.SetPaintTextFormat(".3f")
-    h.SetMarkerSize(2)
-    h.GetXaxis().SetBinLabel(1, "#pi^{#pm}_{true}")
-    h.GetXaxis().SetBinLabel(2, "K^{#pm}_{true}")
-    h.GetXaxis().SetBinLabel(3, "p_{true}")
-    h.GetXaxis().SetBinLabel(4, "other")
-
-    h.GetYaxis().SetBinLabel(1, "#pi^{#pm}_{reco}")
-    h.GetYaxis().SetBinLabel(2, "K^{#pm}_{reco}")
-    h.GetYaxis().SetBinLabel(3, "p_{reco}")
-    h.GetYaxis().SetBinLabel(4, "undefined")
-
-    for i, pfo in enumerate(tree):
-
-        # if i > 200000:
-            # break
-        if i%10000 == 0:
-            print("Event", i)
-
-        if not (pfo.n_ecal_hits > 0 and abs(pfo.ts_ecal_pos.z()) < 2385. and abs(pfo.ts_ecal_z0) < 1.):
-            continue
-        mom = math.sqrt(pfo.mom2_hm_TanL)
-        if mom > 10. or mom < 1.:
-            continue
-
-        pdg = pfo.pdg
-        if abs(pdg) == 211:
-            fillx = 0
-        elif abs(pdg) == 321:
-            fillx = 1
-        elif abs(pdg) == 2212:
-            fillx = 2
-        else:
-            fillx = 3
-        min_idx = int(np.argmin( abs(mom_bins - mom) ))
-
-        tof = pfo.tof_closest_0
-        length = pfo.track_length_refit_tanL
-
-
-        if 2. * pfo.mom2_hm_TanL * (speed_of_light*tof/length - 1.) < 0:
-            h.Fill(fillx, 3)
-            continue
-        mass_reco = math.sqrt(2. * pfo.mom2_hm_TanL * (speed_of_light*tof/length - 1.))
-
-
-        prob_pi = 1. - math.erf( abs( mass_reco - gr[211].Eval(mom) ) / gr[211].GetErrorY( min_idx ) /math.sqrt(2))
-        prob_k = 1. - math.erf( abs( mass_reco - gr[321].Eval(mom) ) / gr[321].GetErrorY( min_idx ) /math.sqrt(2))
-        prob_p = 1. - math.erf( abs( mass_reco - gr[2212].Eval(mom) ) / gr[2212].GetErrorY( min_idx )/math.sqrt(2))
-        if prob_pi == 0 and prob_k == 0 and prob_p == 0:
-            h.Fill(fillx, 3)
-            continue
-        filly = int( np.argmax(np.array([prob_pi, prob_k, prob_p])) )
-
-        h.Fill(fillx, filly)
-
-
-        # print("********new pfo************")
-        # print("PDG", pdg)
-        # print("Momentum", mom_ip)
-        # print("Momentum bin", min_idx)
-        # print("tof", tof_ip)
-        # print("length", length_ip)
-        # print("beta", beta_ip)
-        # print("mass reco", mass_reco)
-        # print("")
-        # print("diff to pion", abs( mass_reco - gr_ip[211].Eval(mom_ip) ))
-        # print("diff to kaon", abs( mass_reco - gr_ip[321].Eval(mom_ip) ))
-        # print("diff to proton", abs( mass_reco - gr_ip[2212].Eval(mom_ip) ))
-        # print("")
-        # print("sigma_diff to pion", abs( mass_reco - gr_ip[211].Eval(mom_ip) )/ gr_ip[211].GetErrorY( min_idx ) )
-        # print("sigma_diff to kaon", abs( mass_reco - gr_ip[321].Eval(mom_ip) )/ gr_ip[211].GetErrorY( min_idx ) )
-        # print("sigma_diff to proton", abs( mass_reco - gr_ip[2212].Eval(mom_ip) )/ gr_ip[211].GetErrorY( min_idx ) )
-        # print("")
-        # print("Prob pi", prob_pi)
-        # print("Prob k", prob_k)
-        # print("Prob p", prob_p)
-        # input("wait")
-    h.Scale(1./h.GetEntries())
-    h.Draw("colz text")
-
-    eff = {}
-    pur = {}
-    names = ["total true pi", "total true K", "total true protons", "total true others"]
-    for i in range(1, 5):
-        n_total = 0.
-        for j in range(1, 5):
-            n_total += h.GetBinContent(i, j)
-        print(names[i-1], h.GetBinContent(i, i),"/",n_total, "  efficiency", h.GetBinContent(i, i)/n_total * 100)
-        eff[names[i-1]] = h.GetBinContent(i, i)/n_total
-
-    names = ["total reco pi", "total reco K", "total reco protons", "total undefined"]
-    for i in range(1, 5):
-        n_total = 0.
-        for j in range(1, 5):
-            n_total += h.GetBinContent(j, i)
-        print(names[i-1], h.GetBinContent(i, i),"/",n_total, "  purity", h.GetBinContent(i, i)/n_total * 100)
-        pur[names[i-1]] = h.GetBinContent(i, i) / n_total
-
-
-    input("wait")
 
 
 def plot_dz_matrix():
-    gr, gr_diff, gr_sep = get_curves(df, "mom_dz", "mass_z", n_mom_bins=50, to_draw=False)
+    gr, gr_diff, gr_sep = get_curves(df, "mom_ecal", "mass", n_mom_bins=50, to_draw=True)
     file = ROOT.TFile("/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
     tree = file.TOFAnalysis
 
@@ -570,9 +217,9 @@ def plot_dz_matrix():
         if i%10000 == 0:
             print("Event", i)
 
-        if not (pfo.n_ecal_hits > 0 and abs(pfo.ts_ecal_pos.z()) < 2385. and abs(pfo.ts_ecal_z0) < 1.):
+        if not (pfo.n_ecal_hits > 0 and abs(pfo.ts_ecal_pos.z()) < 2385. and (pfo.ts_ecal_pos - pfo.pos_closest).r() < 4000.):
             continue
-        mom = math.sqrt(pfo.mom2_hm_dz)
+        mom = math.sqrt(pfo.mom_hm_ecal)
         if mom > 10. or mom < 1.:
             continue
 
@@ -588,13 +235,13 @@ def plot_dz_matrix():
         min_idx = int(np.argmin( abs(mom_bins - mom) ))
 
         tof = pfo.tof_closest_0
-        length = pfo.track_length_refit_z
+        length = pfo.track_length_ecal
 
 
-        if 2. * pfo.mom2_hm_dz * (speed_of_light*tof/length - 1.) < 0:
+        if 2. * pfo.mom_hm_ecal * pfo.mom_hm_ecal * (speed_of_light*tof/length - 1.) < 0:
             h.Fill(fillx, 3)
             continue
-        mass_reco = math.sqrt(2. * pfo.mom2_hm_dz * (speed_of_light*tof/length - 1.))
+        mass_reco = math.sqrt(2. * pfo.mom_hm_ecal * pfo.mom_hm_ecal * (speed_of_light*tof/length - 1.))
 
 
         prob_pi = 1. - math.erf( abs( mass_reco - gr[211].Eval(mom) ) / gr[211].GetErrorY( min_idx ) /math.sqrt(2))

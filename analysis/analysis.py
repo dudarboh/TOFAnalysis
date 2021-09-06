@@ -28,14 +28,22 @@ df = ROOT.RDataFrame(ch)
 
 # h1 = df.Filter("std::abs( ts_ecal_pos.z() ) < 2385.").Histo1D(("h1", "Barrel;N ECal hits;N PFO", 150, 0, 150,), "n_ecal_hits" )
 # h2 = df.Filter("std::abs( ts_ecal_pos.z() ) >= 2385.").Histo1D(("h2", "Endcap;N ECal hits;N PFO", 150, 0, 150,), "n_ecal_hits" )
-h1 = df.Filter("std::abs( ts_ecal_pos.z() ) < 2385.").Histo1D(("h1", "Barrel;N curls;N PFO", 1000, 0, 5,), "n_curls_ecal" )
-h2 = df.Filter("std::abs( ts_ecal_pos.z() ) >= 2385.").Histo1D(("h2", "Endcap;N curls;N PFO", 1000, 0, 5,), "n_curls_ecal" )
+# h1 = df.Filter("std::abs( ts_ecal_pos.z() ) < 2385.").Histo1D(("h1", "Barrel;Track length (mm);N PFO", 2500, 0, 20000,), "track_length_ecal" )
+# h2 = df.Filter("std::abs( ts_ecal_pos.z() ) >= 2385.").Histo1D(("h2", "Endcap;Track length (mm);N PFO", 2500, 0, 20000,), "track_length_ecal" )
+
+# h1 = df.Define("dr", "(ts_ecal_pos - pos_closest).r()").Filter("std::abs( ts_ecal_pos.z() ) < 2385.").Histo1D(("h1", "Barrel;#vec{r}_{track, ecal} - #vec{r}_{closest} (mm);N PFO", 1000, 0, 100,), "dr" )
+# h2 = df.Define("dr", "(ts_ecal_pos - pos_closest).r()").Filter("std::abs( ts_ecal_pos.z() ) >= 2385.").Histo1D(("h2", "Endcap;#vec{r}_{track, ecal} - #vec{r}_{closest} (mm);N PFO", 1000, 0, 100,), "dr" )
+
+h1 = df.Histo1D(("h1", "Barrel;mom_hm_ecal (GeV);N PFO", 1000, 0, 100,), "mom_hm_ecal" )
+h2 = df.Define("mom", "ts_ecal_mom.r()").Histo1D(("h2", "Endcap;p ecal (GeV);N PFO", 1000, 0, 100,), "mom" )
+
 
 h2.SetLineColor(2)
 h1.Draw()
 h2.Draw("sames")
 
 canvas.BuildLegend()
+h1.SetTitle("")
 canvas.Update()
 input("wait")
 

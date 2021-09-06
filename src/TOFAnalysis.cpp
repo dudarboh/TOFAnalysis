@@ -307,7 +307,12 @@ void TOFAnalysis::processEvent(LCEvent* evt){
             mom.SetCoordinates(helix.getMomentum());
             p.push_back( mom.r() );
             //can't calculate track length from 1 element
-            if (j == 0) continue;
+            if (j == 0) {
+                arcLength.push_back(0.);
+                arcCurl.push_back(0.);
+                pWeighted.push_back(0.);
+                continue;
+            };
             //for this we need to check if last arc between lastHit and Ecal less than pi
             if (j == trackStatesPerHit.size() - 1){
                 streamlog_out(DEBUG8)<<"Last hit z = "<<z[j-1]<<endl;
@@ -330,7 +335,10 @@ void TOFAnalysis::processEvent(LCEvent* evt){
             double deltaPhi = std::abs(phi[j] - phi[j-1]);
             if (deltaPhi > M_PI) deltaPhi = 2*M_PI - deltaPhi;
             arcCurl.push_back( deltaPhi );
+            streamlog_out(DEBUG8)<<"ArcLength: "<<arcLength[j]<<endl;
+            streamlog_out(DEBUG8)<<"Momentum: "<<p[j]<<endl;
             pWeighted.push_back( arcLength[j] /(p[j]*p[j]) );
+            streamlog_out(DEBUG8)<<"pHarmonic: "<<pWeighted[j]<<endl;
         }
 
         // just sum
