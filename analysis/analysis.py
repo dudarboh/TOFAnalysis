@@ -19,11 +19,23 @@ TRandom3 r;
 
 ch = ROOT.TChain("TOFAnalysis")
 
-ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
-
+# ch.Add("/nfs/dust/ilc/user/dudarboh/final_files/SET/final.root")
+ch.Add("/afs/desy.de/user/d/dudarboh/TOFAnalysis/build/initial.root")
+ch.AddFriend("fix=TOFAnalysis", "/afs/desy.de/user/d/dudarboh/TOFAnalysis/build/fixed.root")
 
 
 df = ROOT.RDataFrame(ch)
+
+h_diff = df.Define("dr_old", "(ts_ecal_pos - pos_closest).r()")\
+          .Define("dr_new", "(fix.ts_ecal_pos - fix.pos_closest).r()")\
+          .Define("dr_diff", "dr_new - dr_old")\
+          .Histo1D(("h_diff", "DIFF;#Delta|#vec{r}_{track, ecal} - #vec{r}_{closest}| (mm); N PFO", 1000, -10000, 10000), "dr_diff")
+
+# h_new = df.Histo1D(("h_new", "NEW;|#vec{r}_{track, ecal} - #vec{r}_{closest}| (mm); N PFO", 1000, 0, 10000), "dr_new")
+
+h_diff.Draw()
+# h_new.Draw("same")
+# h_new.SetLineColor(ROOT.kRed + 1)
 
 
 # h1 = df.Filter("std::abs( ts_ecal_pos.z() ) < 2385.").Histo1D(("h1", "Barrel;N ECal hits;N PFO", 150, 0, 150,), "n_ecal_hits" )
@@ -31,19 +43,19 @@ df = ROOT.RDataFrame(ch)
 # h1 = df.Filter("std::abs( ts_ecal_pos.z() ) < 2385.").Histo1D(("h1", "Barrel;Track length (mm);N PFO", 2500, 0, 20000,), "track_length_ecal" )
 # h2 = df.Filter("std::abs( ts_ecal_pos.z() ) >= 2385.").Histo1D(("h2", "Endcap;Track length (mm);N PFO", 2500, 0, 20000,), "track_length_ecal" )
 
-# h1 = df.Define("dr", "(ts_ecal_pos - pos_closest).r()").Filter("std::abs( ts_ecal_pos.z() ) < 2385.").Histo1D(("h1", "Barrel;#vec{r}_{track, ecal} - #vec{r}_{closest} (mm);N PFO", 1000, 0, 100,), "dr" )
-# h2 = df.Define("dr", "(ts_ecal_pos - pos_closest).r()").Filter("std::abs( ts_ecal_pos.z() ) >= 2385.").Histo1D(("h2", "Endcap;#vec{r}_{track, ecal} - #vec{r}_{closest} (mm);N PFO", 1000, 0, 100,), "dr" )
+# h1 = df.Define("dr", "(ts_ecal_pos - pos_closest).r()").Filter("std::abs( ts_ecal_pos.z() ) < 2385.").Histo1D(("h1", "Barrel;|#vec{r}_{track, ecal} - #vec{r}_{closest}| (mm);N PFO", 1000, 0, 10000,), "dr" )
+# h2 = df.Define("dr", "(ts_ecal_pos - pos_closest).r()").Filter("std::abs( ts_ecal_pos.z() ) >= 2385.").Histo1D(("h2", "Endcap;|#vec{r}_{track, ecal} - #vec{r}_{closest}| (mm);N PFO", 1000, 0, 10000,), "dr" )
 
-h1 = df.Histo1D(("h1", "Barrel;mom_hm_ecal (GeV);N PFO", 1000, 0, 100,), "mom_hm_ecal" )
-h2 = df.Define("mom", "ts_ecal_mom.r()").Histo1D(("h2", "Endcap;p ecal (GeV);N PFO", 1000, 0, 100,), "mom" )
+# h1 = df.Histo1D(("h1", "Barrel;mom_hm_ecal (GeV);N PFO", 1000, 0, 100,), "mom_hm_ecal" )
+# h2 = df.Define("mom", "ts_ecal_mom.r()").Histo1D(("h2", "Endcap;p ecal (GeV);N PFO", 1000, 0, 100,), "mom" )
 
 
-h2.SetLineColor(2)
-h1.Draw()
-h2.Draw("sames")
+# h2.SetLineColor(2)
+# h1.Draw()
+# h2.Draw("sames")
 
 canvas.BuildLegend()
-h1.SetTitle("")
+h_diff.SetTitle("")
 canvas.Update()
 input("wait")
 

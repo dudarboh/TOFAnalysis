@@ -5,8 +5,53 @@
 
     <global>
 		<parameter name="LCIOInputFiles">
-            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/250-SetA/2f_hadronic_eL_pR/ILD_l5_o1_v02/v02-02/00015161/000/rv02-02.sv02-02.mILD_l5_o1_v02.E250-SetA.I500010.P2f_z_h.eL.pR.n001_209.d_rec_00015161_259.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_001.d_rec_00015417_5.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_002.d_rec_00015417_15.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_003.d_rec_00015417_10.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_004.d_rec_00015417_14.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_005.d_rec_00015417_413.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_006.d_rec_00015417_580.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_007.d_rec_00015417_579.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_008.d_rec_00015417_4.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_009.d_rec_00015417_246.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_010.d_rec_00015417_370.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_011.d_rec_00015417_158.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_012.d_rec_00015417_522.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_013.d_rec_00015417_398.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_014.d_rec_00015417_375.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_015.d_rec_00015417_9.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_016.d_rec_00015417_401.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_018.d_rec_00015417_7.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_019.d_rec_00015417_233.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_021.d_rec_00015417_179.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_023.d_rec_00015417_916.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_025.d_rec_00015417_320.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_027.d_rec_00015417_86.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_028.d_rec_00015417_220.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_029.d_rec_00015417_634.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_030.d_rec_00015417_13.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_031.d_rec_00015417_977.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_032.d_rec_00015417_434.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_033.d_rec_00015417_6.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_036.d_rec_00015417_157.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_037.d_rec_00015417_305.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_038.d_rec_00015417_257.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_039.d_rec_00015417_237.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_040.d_rec_00015417_175.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_041.d_rec_00015417_8.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_042.d_rec_00015417_478.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_043.d_rec_00015417_12.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_044.d_rec_00015417_11.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_045.d_rec_00015417_386.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_046.d_rec_00015417_646.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_047.d_rec_00015417_88.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_048.d_rec_00015417_348.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_049.d_rec_00015417_466.slcio
+            /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/1-calib/single/ILD_l5_o1_v02_nobg/v02-02-01/00015417/000/rv02-02-01.sv02-02-01.mILD_l5_o1_v02_nobg.E1-calib.I110081.Ps_pm11_prnd.e0.p0.n001_050.d_rec_00015417_3.slcio
+
+            <!-- /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/250-SetA/2f_hadronic_eR_pL/ILD_l5_o1_v02/v02-02/00015164/000/rv02-02.sv02-02.mILD_l5_o1_v02.E250-SetA.I500012.P2f_z_h.eR.pL.n000_001.d_rec_00015164_310.slcio -->
             <!-- /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/250-SetA/2f_hadronic_eR_pL/ILD_l5_o1_v02/v02-02/00015164/000/rv02-02.sv02-02.mILD_l5_o1_v02.E250-SetA.I500012.P2f_z_h.eR.pL.n000_111.d_rec_00015164_58.slcio -->
+            <!-- /pnfs/desy.de/ilc/prod/ilc/mc-2020/ild/rec/250-SetA/2f_hadronic_eL_pR/ILD_l5_o1_v02/v02-02/00015161/000/rv02-02.sv02-02.mILD_l5_o1_v02.E250-SetA.I500010.P2f_z_h.eL.pR.n001_209.d_rec_00015161_259.slcio -->
         </parameter>
 		<parameter name="MaxRecordNumber" value="0" />
         <parameter name="SupressCheck" value="false" />
@@ -14,8 +59,11 @@
 	</global>
 
 	<execute>
+        <processor name="MyAIDAProcessor" />
         <processor name="InitDD4hep" />
-        <processor name="MyTOFAnalysis"/>
+        <processor name="MySETDigiTest" />
+        <processor name="MySETTest" />
+        <!-- <processor name="MyTOFAnalysis"/> -->
 
         <!-- <processor name="MyKinkFinder"/> -->
         <!-- <processor name="MyRefitProcessorProton"/> -->
@@ -80,6 +128,57 @@
     <processor name="MyKinkFinder" type="KinkFinderDEBUG">
       <parameter name="DebugPrinting" type="int"> 0</parameter>
       <parameter name="TrackCollection" type="string"> MarlinTrkTracksNEW</parameter>
+    </processor>
+
+    <processor name="MySETDigiTest" type="DDPlanarDigiProcessor">
+      <!--Project hits onto the surface in case they are not yet on the surface (default: false)-->
+      <parameter name="ForceHitsOntoSurface" type="bool">true </parameter>
+
+      <!--PlanarDigiProcessor creates TrackerHits from SimTrackerHits, smearing them according to the input parameters.-->
+      <parameter name="SubDetectorName" type="string"> SET </parameter>
+      <!--whether hits are 1D strip hits-->
+      <parameter name="IsStrip" type="bool">true </parameter>
+      <!--resolution in direction of u-->
+      <parameter name="ResolutionU" type="float">0.007 </parameter>
+      <!--resolution in direction of v-->
+      <parameter name="ResolutionV" type="float">0 </parameter>
+      <!--Name of the Input SimTrackerHit collection-->
+      <parameter name="SimTrackHitCollectionName" type="string" lcioInType="SimTrackerHit">SETCollection </parameter>
+      <!--Name of TrackerHit SimTrackHit relation collection-->
+      <parameter name="SimTrkHitRelCollection" type="string" lcioOutType="LCRelation">SETTrackerHitRelations_TEST </parameter>
+      <!--Name of the TrackerHit output collection-->
+      <parameter name="TrackerHitCollectionName" type="string" lcioOutType="TrackerHitPlane">SETTrackerHits_TEST </parameter>
+      <!--verbosity level of this processor ("DEBUG0-4,MESSAGE0-4,WARNING0-4,ERROR0-4,SILENT")-->
+      <parameter name="Verbosity" type="string">DEBUG1 </parameter>
+    </processor>
+
+
+    <processor name="MySETTest" type="DDSpacePointBuilder">
+      <!--SpacePointBuilder combine si-strip measurements into 3D spacepoints (1TrackerHitPlanar+1TrackHitPlanar = 1 TrackerHit), that can be used by reconstruction-->
+      <!--Name of sub detector-->
+      <parameter name="SubDetectorName" type="string"> SET </parameter>
+      <!--The length of the strips of the subdetector in mm-->
+      <parameter name="StripLength" type="Double"> 9.200000000e+01 </parameter>
+      <!--Name of the SpacePoint SimTrackerHit relation collection-->
+      <parameter name="SimHitSpacePointRelCollection" type="string" lcioOutType="LCRelation"> SETSpacePointRelations_TEST </parameter>
+      <!--SpacePointsCollection-->
+      <parameter name="SpacePointsCollection" type="string" lcioOutType="TrackerHit"> SETSpacePoints_TEST </parameter>
+      <!--TrackerHitCollection-->  
+      <parameter name="TrackerHitCollection" type="string" lcioInType="TrackerHitPlane"> SETTrackerHits_TEST </parameter>
+      <!--The name of the input collection of the relations of the TrackerHits to SimHits-->
+      <parameter name="TrackerHitSimHitRelCollection" type="string" lcioInType="LCRelation"> SETTrackerHitRelations_TEST </parameter>
+      <!--verbosity level of this processor ("DEBUG0-4,MESSAGE0-4,WARNING0-4,ERROR0-4,SILENT")-->
+      <parameter name="Verbosity" type="string">DEBUG1</parameter>
+    </processor>
+    
+    <processor name="MyAIDAProcessor" type="AIDAProcessor">
+      <!--Processor that handles AIDA files. Creates on directory per processor.  Processors only need to create and fill the histograms, clouds and tuples. Needs to be the first ActiveProcessor-->
+      <!-- compression of output file 0: false >0: true (default) -->
+      <parameter name="Compress" type="int" value="1"/>
+      <!-- filename without extension-->
+      <parameter name="FileName" type="string" value="aida.root"/>
+      <!-- type of output file xml (default) or root ( only OpenScientist)-->
+      <parameter name="FileType" type="string" value="root "/>
     </processor>
 
 </marlin>

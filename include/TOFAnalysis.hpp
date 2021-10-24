@@ -58,7 +58,7 @@ class TOFAnalysis : public marlin::Processor {
         double _tofFrankFit[5];
         double _tofFrankAvg[5];
 
-        // MarlinTrk v02-00 release notes
+        // MarlinTrk v02-00 release notes:
         // USERS SHOULD NO LONGER DELETE THE IMarlinTrkSystem POINTER IN THEIR CODE (Marlin processor)
         MarlinTrk::IMarlinTrkSystem* _trkSystem;
         dd4hep::Detector& _theDetector = dd4hep::Detector::getInstance();

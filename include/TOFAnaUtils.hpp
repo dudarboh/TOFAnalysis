@@ -19,6 +19,9 @@
 #include "marlinutil/CalorimeterHitType.h"
 #include "marlinutil/GeometryUtil.h"
 
+#include "IMPL/TrackStateImpl.h"
+
+
 #include "DDRec/DetectorData.h"
 #include "Math/Vector3D.h"
 
@@ -53,7 +56,7 @@ namespace TOFAnaUtils{
 
     int getNEcalHits(Cluster* cluster);
 
-    void drawPfo(Track* track, Cluster* cluster);
+    void drawPfo(Track* track, Cluster* cluster, const TrackStateImpl tsEcal);
 
 }
 
