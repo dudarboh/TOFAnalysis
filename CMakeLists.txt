@@ -16,7 +16,7 @@ add_library(${PROJECT_NAME} SHARED ${PROJECT_SOURCE_DIR}/src/TOFAnaUtils.cpp ${P
 ### DEPENDENCIES ###
 find_package(Marlin REQUIRED)
 find_package(MarlinUtil REQUIRED)
-# find_package(MarlinTrk REQUIRED)
+find_package(MarlinTrk REQUIRED)
 
 # this is broken as fck
 # find_package (MarlinTrk PATHS /afs/desy.de/user/d/dudarboh/iLCSoft/MarlinTrk/ NO_DEFAULT_PATH)

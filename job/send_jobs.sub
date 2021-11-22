@@ -1,17 +1,16 @@
 executable = /afs/desy.de/user/d/dudarboh/TOFAnalysis/job/job.sh
 arguments = $(file) $(ProcId)
 
-Requirements = OpSys == "LINUX" && Arch =="X86_64"
+initialdir = /nfs/dust/ilc/user/dudarboh/jobs/job$(ProcId)
+
+log = job.log
+output = job.out
+error = job.err
+
 request_cpus = 1
-request_memory = 2000 Mb
-request_disk = 5MB
+request_memory = 1GB
+request_disk = 10KB
 
-initialdir = /nfs/dust/ilc/user/dudarboh/job_files/jobs
-should_transfer_files = NO
-max_retries = 5
+max_retries = 3
 
-log = ../log/$(ProcId).log
-output = ../out/$(ProcId).out
-error = ../err/$(ProcId).err
-
-queue file from /afs/desy.de/user/d/dudarboh/TOFAnalysis/job/2f_Z_hadronic_250gev_part2.txt
+queue file from /afs/desy.de/user/d/dudarboh/TOFAnalysis/job/2f_Z_hadronic_250gev_part1.txt

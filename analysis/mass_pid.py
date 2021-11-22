@@ -20,12 +20,12 @@ double getOldMass(double phi1, double phi2, double omega, double tanL, double to
     return mass;
 }
 
-double getNewMass1(double mom, double beta){
+double getNewMass(double mom, double beta){
     if (beta > 1.)return -999.;
     return mom / beta * std::sqrt(1. - beta*beta);
 }
 
-double getNewMass2(double mom, double beta){
+double getNewMassLinearApprox(double mom, double beta){
     if (beta > 1.)return -999.;
     return std::sqrt(2.*mom*mom*(1./beta - 1.));
 }
@@ -42,8 +42,8 @@ ROOT.gStyle.SetPadGridX(1)
 ROOT.gStyle.SetPadGridY(1)
 ROOT.gStyle.SetPalette(57)
 
-canvas_glob = ROOT.TCanvas()
-test_canvas = ROOT.TCanvas()
+canvas_glob = ROOT.TCanvas("rename", "rename", 1280, 800)
+# test_canvas = ROOT.TCanvas("rename", "rename", 1280, 800)
 
 # Get true beta vs p curves
 
@@ -57,7 +57,7 @@ def get_curves(df, mom_str, method, n_mom_bins=30, to_draw=True):
     m_pdg = {211 : 0.13957039, 321 : 0.493677, 2212 : 0.938272088}
 
     if to_draw:
-        canvas = ROOT.TCanvas()
+        canvas = ROOT.TCanvas("rename", "title", 1280, 800)
         canvas.Divide(2, 2)
         for i in range(1, 5):
             canvas.cd(i)
@@ -143,13 +143,13 @@ def get_curves(df, mom_str, method, n_mom_bins=30, to_draw=True):
             pdg_line[pdg].SetLineColor(4)
             pdg_line[pdg].Draw()
             graphs[pdg].Draw("PEsame")
-            test_canvas.cd()
-            if pdg == 211:
-                graphs[pdg].Draw("APE")
-            pdg_line[pdg] = ROOT.TLine(0., m_pdg[pdg], 15., m_pdg[pdg])
-            pdg_line[pdg].SetLineColor(4)
-            pdg_line[pdg].Draw()
-            graphs[pdg].Draw("PEsame")
+            # test_canvas.cd()
+            # if pdg == 211:
+            #     graphs[pdg].Draw("APE")
+            # pdg_line[pdg] = ROOT.TLine(0., m_pdg[pdg], 15., m_pdg[pdg])
+            # pdg_line[pdg].SetLineColor(4)
+            # pdg_line[pdg].Draw()
+            # graphs[pdg].Draw("PEsame")
 
             canvas.cd(4)
             gr_diff[pdg].Draw("APE0" if pdg == 211 else "PE0same")
@@ -209,17 +209,16 @@ def get_curves(df, mom_str, method, n_mom_bins=30, to_draw=True):
 
 df = ROOT.RDataFrame("TOFAnalysis", "/nfs/dust/ilc/user/dudarboh/tof/final.root")
 df = df.Filter("n_ecal_hits > 0 && abs(ts_ecal_pos.z()) < 2385. && (ts_ecal_pos - pos_closest).r() < 4000.")\
-        .Define("mom_ecal", "ts_ecal_mom.r()")\
-
-df = df.Define("mass_ecal", "getOldMass(ts_ip_phi, ts_ecal_phi, ts_ecal_omega, ts_ecal_tanL, tof_closest_0, mom_ecal)")
 
 resolutions = [0, 10, 30, 50, 100]
 
 histos = []
 for i,res in enumerate(resolutions):
     df = df.Define("beta_{}".format(res), "track_length_ecal/(tof_closest_{}*SPEED_OF_LIGHT)".format(res))\
-           .Define("mass_{}".format(res), "getNewMass1(mom_hm_ecal, beta_{})".format(res))\
+           .Define("mass_{}".format(res), "getNewMass(mom_hm_ecal, beta_{})".format(res))\
 
+df = df.Define("beta_avg_100", "track_length_ecal/(tof_frank_avg_100*SPEED_OF_LIGHT)")\
+        .Define("mass_avg_100", "getNewMass(mom_hm_ecal, beta_avg_100)")
 #     histos.append( df.Histo1D(("h_{}".format(res), "{} ps; mass (MeV); N pfo".format(res), 1000, 0, 1000), "mass_{}".format(res)) )
 #     histos[-1].Draw("" if i == 0 else "same")
 #     histos[-1].SetLineColor(ROOT.kRed + 4 - i )
@@ -235,42 +234,37 @@ for i,res in enumerate(resolutions):
 # canvas.Update()
 # input("wait")
 
-gr_refit, gr_diff_refit, gr_sep_refit_0 = get_curves(df, "mom_ecal", "mass_ecal", n_mom_bins=30, to_draw=True)
-gr_refit, gr_diff_refit, gr_sep_refit_0 = get_curves(df, "mom_hm_ecal", "mass_0", n_mom_bins=30, to_draw=True)
-# gr_refit, gr_diff_refit, gr_sep_refit_0 = get_curves(df, "mom_ecal", "mass4_0", n_mom_bins=30, to_draw=True)
-
-
-# gr_ecal, gr_diff_ecal, gr_sep_ecal = get_curves(df, "mom_ecal", "mass_ecal", n_mom_bins=30, to_draw=True)
 # gr_refit, gr_diff_refit, gr_sep_refit_0 = get_curves(df, "mom_hm_ecal", "mass_0", n_mom_bins=30, to_draw=False)
 # gr_refit, gr_diff_refit, gr_sep_refit_10 = get_curves(df, "mom_hm_ecal", "mass_10", n_mom_bins=30, to_draw=False)
 # gr_refit, gr_diff_refit, gr_sep_refit_30 = get_curves(df, "mom_hm_ecal", "mass_30", n_mom_bins=30, to_draw=False)
 # gr_refit, gr_diff_refit, gr_sep_refit_50 = get_curves(df, "mom_hm_ecal", "mass_50", n_mom_bins=30, to_draw=False)
 # gr_refit, gr_diff_refit, gr_sep_refit_100 = get_curves(df, "mom_hm_ecal", "mass_100", n_mom_bins=30, to_draw=False)
+gr_refit, gr_diff_refit, gr_sep_refit_100 = get_curves(df, "mom_hm_ecal", "mass_avg_100", n_mom_bins=30, to_draw=False)
 #
-# canvas_glob.cd()
+canvas_glob.cd()
 # gr_sep_refit_0["pik"].Draw("APL")
 # gr_sep_refit_0["pik"].SetLineColor(ROOT.kRed + 4)
-#
+# 
 # gr_sep_refit_10["pik"].Draw("PLsame")
 # gr_sep_refit_10["pik"].SetLineColor(ROOT.kRed + 3)
-#
+# 
 # gr_sep_refit_30["pik"].Draw("PLsame")
 # gr_sep_refit_30["pik"].SetLineColor(ROOT.kRed + 2)
-#
+# 
 # gr_sep_refit_50["pik"].Draw("PLsame")
 # gr_sep_refit_50["pik"].SetLineColor(ROOT.kRed + 1)
-#
+# 
 # gr_sep_refit_100["pik"].Draw("PLsame")
 # gr_sep_refit_100["pik"].SetLineColor(ROOT.kRed)
 
-#
-# gr_sep_ecal["kp"].Draw("PLsame")
-# gr_sep_ecal["kp"].SetLineColor(4)
-# gr_sep_refit["kp"].Draw("PLsame")
-# gr_sep_refit["kp"].SetLineColor(6)
-#
-# canvas_glob.Update()
-# input("wait")
+
+gr_sep_refit_100["pik"].Draw("APL")
+gr_sep_refit_100["pik"].SetLineColor(4)
+gr_sep_refit_100["kp"].Draw("PLsame")
+gr_sep_refit_100["kp"].SetLineColor(6)
+
+canvas_glob.Update()
+input("wait")
 
 def plot_matrix(df, mom_string, mass_string):
     gr, gr_diff, gr_sep = get_curves(df, mom_string, mass_string, n_mom_bins=30, to_draw=False)
@@ -280,7 +274,7 @@ def plot_matrix(df, mom_string, mass_string):
 
     mom_bins = [ gr[211].GetPointX(i) for i in range(n_points) ]
     mom_bins = np.array(mom_bins)
-    data = df.Filter("{0} > 0. && {0} <= 15.".format(mom_string)).AsNumpy(["pdg", mom_string, mass_string])
+    data = df.Filter("{0} > 0. && {0} <= 6.".format(mom_string)).AsNumpy(["pdg", mom_string, mass_string])
 
     for i, (pdg, mom, mass) in enumerate( zip(data["pdg"], data[mom_string], data[mass_string]) ):
         # if i > 200000:
@@ -342,8 +336,8 @@ def plot_matrix(df, mom_string, mass_string):
         norm = h.GetBinContent(c, 1) + h.GetBinContent(c, 2) + h.GetBinContent(c, 3) + h.GetBinContent(c, 4)
         for r in range(1, 5):
             h.SetBinContent(c, r, h.GetBinContent(c, r) / norm)
-    # h.Draw("colz text")
-    # input("wait")
+    h.Draw("colz text")
+    input("wait")
     eff_pi = matrix[:, 0, 0] / (matrix[:, 0, 0] + matrix[:, 0, 1] + matrix[:, 0, 2] + matrix[:, 0, 3])
     eff_k = matrix[:, 1, 1] / (matrix[:, 1, 0] + matrix[:, 1, 1] + matrix[:, 1, 2] + matrix[:, 1, 3])
     eff_p = matrix[:, 2, 2] / (matrix[:, 2, 0] + matrix[:, 2, 1] + matrix[:, 2, 2] + matrix[:, 2, 3])

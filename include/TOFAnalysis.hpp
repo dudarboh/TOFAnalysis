@@ -1,70 +1,54 @@
 #ifndef TOFAnalysis_h
 #define TOFAnalysis_h 1
 
-#include <memory>
-#include <map>
-
+#include <string>
+#include <vector>
 #include "marlin/Processor.h"
+#include "MarlinTrk/IMarlinTrkSystem.h"
 #include "TFile.h"
 #include "TTree.h"
-
-#include "DD4hep/Detector.h"
 #include "Math/Vector3D.h"
-#include "MarlinTrk/IMarlinTrkSystem.h"
 
 class TOFAnalysis : public marlin::Processor {
     public:
+
+        TOFAnalysis(const TOFAnalysis&) = delete;
+        TOFAnalysis& operator=(const TOFAnalysis&) = delete;
+        marlin::Processor* newProcessor() { return new TOFAnalysis; }
+
         TOFAnalysis();
-        marlin::Processor* newProcessor() {return new TOFAnalysis;}
         void init();
-        void processEvent(LCEvent* evt);
+        void processEvent(EVENT::LCEvent* evt);
         void end();
+
+    private:
+        int _nEvent;
 
         std::unique_ptr<TFile> _file;
         std::unique_ptr<TTree> _tree;
-        std::string _outputFileName;
 
-        int _nEvent;
+        // Variables for tree branches
         int _pdg;
-
-        double dummy = std::numeric_limits<double>::min();
-        ROOT::Math::XYZVectorF dummyVec = ROOT::Math::XYZVectorF(dummy, dummy, dummy);
-        std::map< std::string, ROOT::Math::XYZVectorF > _tsPos = { {"ip", dummyVec}, {"first", dummyVec}, {"last", dummyVec}, {"ecal", dummyVec} };
-        std::map< std::string, ROOT::Math::XYZVectorF > _tsMom = { {"ip", dummyVec}, {"first", dummyVec}, {"last", dummyVec}, {"ecal", dummyVec} };
-        std::map< std::string, double > _tsOmega = { {"ip", dummy}, {"first", dummy}, {"last", dummy}, {"ecal", dummy} };
-        std::map< std::string, double > _tsTanL = { {"ip", dummy}, {"first", dummy}, {"last", dummy}, {"ecal", dummy} };
-        std::map< std::string, double > _tsPhi = { {"ip", dummy}, {"first", dummy}, {"last", dummy}, {"ecal", dummy} };
-        std::map< std::string, double > _tsD0 = { {"ip", dummy}, {"first", dummy}, {"last", dummy}, {"ecal", dummy} };
-        std::map< std::string, double > _tsZ0 = { {"ip", dummy}, {"first", dummy}, {"last", dummy}, {"ecal", dummy} };
-
         bool _hasSetHit;
         int _nEcalHits;
-        int _nFitHits;
-        ROOT::Math::XYZVector _posSetHit{};
+        ROOT::Math::XYZVectorF _posECAL;
+        ROOT::Math::XYZVectorF _momECAL;
+        double _d0ECAL;
+        double _z0ECAL;
 
-        ROOT::Math::XYZVectorF _posClosest{};
-        ROOT::Math::XYZVectorF _posFastest[5];
+        double _trackLengthSET;
+        double _momentumSET;
+        double _trackLengthECAL;
+        double _momentumECAL;
+        std::vector<double> _tof_closest = std::vector<double>(11, 0.);
+        std::vector<double> _tof_set = std::vector<double>(11, 0.);
+        std::vector< std::vector<double> > _tof_avg = std::vector< std::vector<double> >(11, std::vector<double>(30, 0.));
+        std::vector< std::vector<double> > _tof_fit = std::vector< std::vector<double> >(11, std::vector<double>(30, 0.));
 
-        std::map< std::string, double > _mom = { {"hmSet", 0.}, {"hmEcal", 0.} };
+        MarlinTrk::IMarlinTrkSystem* _trkSystem = nullptr;
 
-        std::map< std::string, double > _trackLength = { {"set", dummy}, {"ecal", dummy}  };
-        std::map< std::string, double > _nCurls = { {"set", dummy}, {"ecal", dummy}  };
-
-        double _smearings[5] = {0., 10., 30., 50., 100.};
-        double _tofSetFront[5];
-        double _tofSetBack[5];
-        double _tofClosest[5];
-        double _tofFastest[5];
-        double _tofFrankFit[5];
-        double _tofFrankAvg[5];
-
-        // MarlinTrk v02-00 release notes:
-        // USERS SHOULD NO LONGER DELETE THE IMarlinTrkSystem POINTER IN THEIR CODE (Marlin processor)
-        MarlinTrk::IMarlinTrkSystem* _trkSystem;
-        dd4hep::Detector& _theDetector = dd4hep::Detector::getInstance();
-        double _bField;
-        double _tpcROuter;
+        double _bField{};
+        double _tpcOuterR{};
 };
-
 
 #endif

@@ -1,156 +1,60 @@
 #include "TOFAnaUtils.hpp"
 
-MCParticle* TOFAnaUtils::getMcMaxWeight(LCRelationNavigator pfoToMc, ReconstructedParticle* pfo){
+#include <cmath>
+#include <algorithm>
+#include <limits>
+
+#include "marlin/VerbosityLevels.h"
+#include "marlinutil/CalorimeterHitType.h"
+#include "HelixClass.h"
+#include "DD4hep/Detector.h"
+#include "DD4hep/DD4hepUnits.h"
+#include "DDRec/DetectorData.h"
+#include "CLHEP/Random/Randomize.h"
+#include "CLHEP/Units/PhysicalConstants.h"
+#include "TGraphErrors.h"
+#include "TF1.h"
+#include "MarlinTrk/MarlinTrkUtils.h"
+#include "UTIL/ILDConf.h"
+#include "IMPL/TrackImpl.h"
+
+using std::vector;
+using std::numeric_limits;
+using std::pair;
+using EVENT::LCObject;
+using EVENT::MCParticle;
+using EVENT::TrackerHit;
+using EVENT::Track;
+using EVENT::Cluster;
+using EVENT::CalorimeterHit;
+using EVENT::TrackState;
+using dd4hep::Detector;
+using dd4hep::DetElement;
+using dd4hep::rec::Vector3D;
+using dd4hep::rec::FixedPadSizeTPCData;
+using MarlinTrk::IMarlinTrack;
+using MarlinTrk::IMarlinTrkSystem;
+using UTIL::LCRelationNavigator;
+using UTIL::ILDDetID;
+using IMPL::TrackImpl;
+using IMPL::TrackStateImpl;
+using CLHEP::RandGauss;
+
+EVENT::MCParticle* TOFAnaUtils::getMcMaxWeight(UTIL::LCRelationNavigator pfoToMc, EVENT::ReconstructedParticle* pfo){
     MCParticle* mc = nullptr;
     const vector <LCObject*>& mcs = pfoToMc.getRelatedToObjects(pfo);
     const vector <float>& mcWeights = pfoToMc.getRelatedToWeights(pfo);
+    // weight //10000 = energy fraction of this MC particle in the cluster
+    // weight % 10000 = number of tracker hits in per-mile of this MC particle in the track
     if (mcs.size() == 0) return mc;
+    //I simply check the larger weight, meaning highest energy fraction. If two particles have equal energy fraction, choose with more track hits..
     int maxW = std::max_element(mcWeights.begin(), mcWeights.end()) - mcWeights.begin();
-    mc = dynamic_cast <MCParticle*> ( mcs[maxW] );
+    mc = static_cast <MCParticle*> ( mcs[maxW] );
     return mc;
 }
 
 
-std::pair<double, double> TOFAnaUtils::getTpcR(){
-    Detector& detector = Detector::getInstance();
-    DetElement tpcDet = detector.detector("TPC");
-    dd4hep::rec::FixedPadSizeTPCData * tpc = tpcDet.extension <dd4hep::rec::FixedPadSizeTPCData>();
-
-    double rInner = tpc->rMinReadout/dd4hep::mm;
-    double rOuter = tpc->rMaxReadout/dd4hep::mm;
-    return std::make_pair(rInner, rOuter);
-}
-
-TrackerHit* TOFAnaUtils::getSetHit(Track* track, double tpcROuter){
-    const vector<TrackerHit*>& hits = track->getTrackerHits();
-    //Performance: loop from the end. SET hits at the end!
-    for (int i=hits.size()-1; i>=0; --i){
-        XYZVector pos;
-        pos.SetCoordinates( hits[i]->getPosition() );
-        if ( pos.rho() > tpcROuter && i!=hits.size()-1 ) std::cout<<"WATAFAAAAAAAAAAAAAAAAAAAACK"<<std::endl;
-        if ( pos.rho() > tpcROuter ) return hits[i];
-    }
-    return nullptr;
-}
-
-
-CalorimeterHit* TOFAnaUtils::getClosestHit( Cluster* cluster, XYZVectorF posTrackAtCalo){
-    CalorimeterHit* closestHit = nullptr;
-
-    float closestDistance = numeric_limits<float>::max();
-    for ( const auto hit : cluster->getCalorimeterHits() ){
-        CHT hitType( hit->getType() );
-        bool isECALHit = ( hitType.caloID() == CHT::ecal );
-        if (! isECALHit) continue;
-
-        XYZVectorF hitPos;
-        hitPos.SetCoordinates( hit->getPosition() );
-        float dToEntry = (hitPos - posTrackAtCalo).r();
-        if( dToEntry < closestDistance ){
-            closestDistance = dToEntry;
-            closestHit = hit;
-        }
-    }
-    return closestHit;
-}
-
-
-std::pair<ROOT::Math::XYZVectorF, double> TOFAnaUtils::getFastestHit( Cluster* cluster, double smearing ){
-    pair<XYZVectorF, double> earliestHit{};
-
-    earliestHit.second = numeric_limits<double>::max();
-    for ( const auto hit : cluster->getCalorimeterHits() ){
-        CHT hitType( hit->getType() );
-        bool isECALHit = ( hitType.caloID() == CHT::ecal );
-        if (! isECALHit) continue;
-
-        double timeHit = CLHEP::RandGauss::shoot( hit->getTime(), smearing );
-        if( timeHit < earliestHit.second ){
-            earliestHit.first.SetCoordinates( hit->getPosition() );
-            earliestHit.second = timeHit;
-        }
-    }
-    return earliestHit;
-}
-
-
-double TOFAnaUtils::getTofFrankFit( Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing, unsigned int nLayers ){
-    vector <double> d;
-    vector <double> time;
-    vector <double> d_err;
-    vector <double> time_err;
-
-    for (unsigned int l=0; l < nLayers; ++l){
-        double closestDistance = numeric_limits<double>::max();
-        double closestTime = numeric_limits<double>::max();
-        double closestDistanceToLine = numeric_limits<double>::max();
-
-        for ( const auto& hit : cluster->getCalorimeterHits() ){
-            CHT hitType( hit->getType() );
-            bool isECALHit = ( hitType.caloID() == CHT::ecal );
-            if ( (! isECALHit) || (hitType.layer() != l) ) continue;
-
-            XYZVectorF pos;
-            pos.SetCoordinates( hit->getPosition() );
-            double dToLine = (pos - posTrackAtCalo).Cross(momTrackAtCalo.unit()).r();
-            if (dToLine < closestDistanceToLine){
-                closestDistance = (pos - posTrackAtCalo).r();
-                closestTime = CLHEP::RandGauss::shoot( hit->getTime() , smearing );
-                closestDistanceToLine = dToLine;
-            }
-        }
-        if ( closestDistanceToLine == numeric_limits<double>::max() ) continue;
-        d.push_back(closestDistance);
-        time.push_back(closestTime);
-        d_err.push_back(0.);
-        time_err.push_back(0.3);
-    }
-    // Can't fit 0 or 1 point. Must return something meaningfull
-    if ( d.size() == 0 ) return 0.;
-    else if ( d.size() == 1 ) return time[0] - d[0]/CLHEP::c_light;
-
-    TGraphErrors gr(d.size(), &d[0], &time[0], &d_err[0], &time_err[0]);
-    gr.Fit("pol1", "Q");
-    return gr.GetFunction("pol1")->GetParameter(0);
-}
-
-
-double TOFAnaUtils::getTofFrankAvg( Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing, unsigned int nLayers ){
-    double tof = 0.;
-    int nHits = 0;
-
-    for (unsigned int l=0; l < nLayers; ++l){
-        double closestDistance = numeric_limits<double>::max();
-        double closestTime = numeric_limits<double>::max();
-        double closestDistanceToLine = numeric_limits<double>::max();
-
-        for ( const auto& hit : cluster->getCalorimeterHits() ){
-            CHT hitType( hit->getType() );
-            bool isECALHit = ( hitType.caloID() == CHT::ecal );
-            if ( (! isECALHit) || (hitType.layer() != l) ) continue;
-
-            XYZVectorF pos;
-            pos.SetCoordinates( hit->getPosition() );
-            double dToLine = (pos - posTrackAtCalo).Cross(momTrackAtCalo.unit()).r();
-            if (dToLine < closestDistanceToLine){
-                closestDistance = (pos - posTrackAtCalo).r();
-                closestTime = CLHEP::RandGauss::shoot(hit->getTime(), smearing);
-                closestDistanceToLine = dToLine;
-            }
-        }
-        if ( closestDistanceToLine == numeric_limits<double>::max() ) continue;
-
-        tof += closestTime - closestDistance/CLHEP::c_light;
-        ++nHits;
-    }
-    if (nHits == 0) return 0.;
-
-    return tof / nHits;
-}
-
-
-
-int TOFAnaUtils::getNEcalHits(Cluster* cluster){
+int TOFAnaUtils::getNEcalHits(EVENT::Cluster* cluster){
     int nHits = 0;
     for ( const auto hit : cluster->getCalorimeterHits() ){
         CHT hitType( hit->getType() );
@@ -160,100 +64,281 @@ int TOFAnaUtils::getNEcalHits(Cluster* cluster){
     return nHits;
 }
 
+bool TOFAnaUtils::sortByRho(EVENT::TrackerHit* a, EVENT::TrackerHit* b){
+    Vector3D posA( a->getPosition() );
+    Vector3D posB( b->getPosition() );
+    return posA.rho() < posB.rho();
+}
 
-void TOFAnaUtils::drawPfo(Track* track, Cluster* cluster, const TrackStateImpl tsEcal){
+
+IMPL::TrackStateImpl TOFAnaUtils::getTrackStateAtHit(MarlinTrk::IMarlinTrack* marlinTrk, EVENT::TrackerHit* hit){
+    TrackStateImpl ts;
+    double chi2Dummy;
+    int ndfDummy;
+    marlinTrk->getTrackState(hit, ts, chi2Dummy, ndfDummy);
+    return ts;
+}
+
+
+dd4hep::rec::Vector3D TOFAnaUtils::getHelixMomAtTrackState(const EVENT::TrackState& ts, double bField){
+    double phi = ts.getPhi();
+    double d0 = ts.getD0();
+    double z0 = ts.getZ0();
+    double omega = ts.getOmega();
+    double tanL = ts.getTanLambda();
+
+    HelixClass helix;
+    helix.Initialize_Canonical(phi, d0, z0, omega, tanL, bField);
+    return helix.getMomentum();
+}
+
+
+double TOFAnaUtils::getHelixArcLength(const EVENT::TrackState& ts1, const EVENT::TrackState& ts2){
+    double omega = ts1.getOmega();
+    double z1 = ts1.getReferencePoint()[2] + ts1.getZ0();
+    double z2 = ts2.getReferencePoint()[2] + ts2.getZ0();
+    double dPhi = std::abs( ts2.getPhi() - ts1.getPhi() );
+    if (dPhi > M_PI) dPhi = 2*M_PI - dPhi;
+
+    return std::sqrt( std::pow(dPhi/omega, 2) + std::pow(z2-z1, 2) );
+}
+
+
+double TOFAnaUtils::getHelixLengthAlongZ(const EVENT::TrackState& ts1, const EVENT::TrackState& ts2){
+    double tanL = ts1.getTanLambda();
+    double z1 = ts1.getReferencePoint()[2] + ts1.getZ0();
+    double z2 = ts2.getReferencePoint()[2] + ts2.getZ0();
+
+    return std::abs( (z2-z1)/tanL ) * std::sqrt( 1.+tanL*tanL );
+}
+
+double TOFAnaUtils::getHelixNRevolutions(const EVENT::TrackState& ts1, const EVENT::TrackState& ts2){
+    double omega = ts1.getOmega();
+    double tanL = ts1.getTanLambda();
+    double z1 = ts1.getReferencePoint()[2] + ts1.getZ0();
+    double z2 = ts2.getReferencePoint()[2] + ts2.getZ0();
+
+    // helix length projected on xy
+    double circHelix = std::abs( (z2-z1)/tanL );
+    double circFull = 2*M_PI/std::abs(omega);
+
+    return circHelix/circFull;
+}
+
+
+double TOFAnaUtils::getTPCOuterR(){
+    auto& detector = Detector::getInstance();
+    DetElement tpcDet = detector.detector("TPC");
+    FixedPadSizeTPCData* tpc = tpcDet.extension <FixedPadSizeTPCData>();
+    return tpc->rMaxReadout/dd4hep::mm;
+}
+
+
+EVENT::TrackerHit* TOFAnaUtils::getSETHit(EVENT::Track* track, double tpcOuterR){
+    vector<TrackerHit*> hits = track->getTrackerHits();
+    TrackerHit* lastHit = hits.back();
+    Vector3D pos (lastHit->getPosition());
+
+    if ( pos.rho() > tpcOuterR ) return lastHit;
+    return nullptr;
+}
+
+
+std::vector<EVENT::CalorimeterHit*> TOFAnaUtils::selectFrankEcalHits( EVENT::Cluster* cluster, EVENT::Track* track, int maxEcalLayer, double bField ){
+    const TrackState* tsEcal = track->getTrackState(TrackState::AtCalorimeter);
+    Vector3D trackPosAtEcal ( tsEcal->getReferencePoint() );
+    Vector3D trackMomAtEcal = TOFAnaUtils::getHelixMomAtTrackState(*tsEcal, bField);
+
+    vector<CalorimeterHit*> selectedHits(maxEcalLayer, nullptr);
+    vector<double> minDistances(maxEcalLayer, numeric_limits<double>::max());
+
+    for ( auto hit : cluster->getCalorimeterHits() ){
+        CHT hitType( hit->getType() );
+        bool isECALHit = ( hitType.caloID() == CHT::ecal );
+        int layer = hitType.layer();
+        if ( (!isECALHit) || ( layer >= maxEcalLayer) ) continue;
+
+        Vector3D hitPos( hit->getPosition() );
+        double dToLine = (hitPos - trackPosAtEcal).cross(trackMomAtEcal.unit()).r();
+        if ( dToLine < minDistances[layer] ){
+            minDistances[layer] = dToLine;
+            selectedHits[layer] = hit;
+        }
+    }
+    selectedHits.erase( std::remove_if( selectedHits.begin(), selectedHits.end(), [](CalorimeterHit* h) { return h == nullptr; } ), selectedHits.end() );
+
+    return selectedHits;
+}
+
+
+std::vector<EVENT::Track*> TOFAnaUtils::getSubTracks(EVENT::Track* track){
     vector<Track*> subTracks;
     subTracks.push_back(track);
+
     int nSubTracks = track->getTracks().size();
-    if (nSubTracks != 1){
-        int nHitsTot = track->getTrackerHits().size();
-        int nHits0 = track->getTracks()[0]->getTrackerHits().size();
-        int nHits1 = track->getTracks()[1]->getTrackerHits().size();
-        if( ((nHitsTot == nHits0 + nHits1)) || ((nHitsTot == nHits0 + nHits1 + 1))  ){
-            for(int j=2; j < nSubTracks; ++j) subTracks.push_back( track->getTracks()[j] );
+    if (nSubTracks <= 1) return subTracks;
+
+    int nTPCHits = track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-1];
+    int nSubTrack0Hits = track->getTracks()[0]->getTrackerHits().size();
+    int nSubTrack1Hits = track->getTracks()[1]->getTrackerHits().size();
+
+    //OPTIMIZE: this is not reliable, but I don't see any other way at the moment.
+    int startIdx;
+    if( std::abs(nTPCHits - nSubTrack0Hits) <= 1  ) startIdx = 1;
+    else if ( std::abs(nTPCHits - nSubTrack1Hits) <= 1 ) startIdx = 2;
+    else{
+        //FIXME: This happens very rarily (0.01%) for unknown reasons, so we just, skip adding subTracks...
+        streamlog_out(WARNING)<<"Can't understand which subTrack is responsible for the first TPC hits! Skip adding subTracks."<<std::endl;
+        return subTracks;
+    }
+    for(int j=startIdx; j < nSubTracks; ++j) subTracks.push_back( track->getTracks()[j] );
+    return subTracks;
+}
+
+
+std::vector<IMPL::TrackStateImpl> TOFAnaUtils::getTrackStatesPerHit(std::vector<EVENT::Track*> tracks, MarlinTrk::IMarlinTrkSystem* trkSystem, bool extrapolateToEcal, double bField){
+    vector<TrackStateImpl> trackStatesPerHit;
+    int nTracks = tracks.size();
+    for(int i=0; i<nTracks; ++i){
+        Track* track = tracks[i];
+        vector <TrackerHit*> hits = track->getTrackerHits();
+        std::sort(hits.begin(), hits.end(), sortByRho);
+
+        // setup initial dummy covariance matrix
+        vector<float> covMatrix(15);
+        // initialize variances
+        covMatrix[0]  = 1e+06; //sigma_d0^2
+        covMatrix[2]  = 100.; //sigma_phi0^2
+        covMatrix[5]  = 0.00001; //sigma_omega^2
+        covMatrix[9]  = 1e+06; //sigma_z0^2
+        covMatrix[14] = 100.; //sigma_tanl^2
+        double maxChi2PerHit = 100.;
+        std::unique_ptr<IMarlinTrack> marlinTrk( trkSystem->createTrack() );
+        TrackImpl refittedTrack;
+
+        //Need to initialize trackState at last hit
+        TrackStateImpl preFit = *track->getTrackState(TrackState::AtLastHit);
+        preFit.setCovMatrix( covMatrix );
+        int errorFit = MarlinTrk::createFinalisedLCIOTrack(marlinTrk.get(), hits, &refittedTrack, IMarlinTrack::backward, &preFit, bField, maxChi2PerHit);
+        if (errorFit != 0) continue;
+
+        vector< pair<TrackerHit*, double> > hitsInFit;
+        marlinTrk->getHitsInFit(hitsInFit);
+
+        int nHitsInFit = hitsInFit.size();
+        // if first subTrack
+        if (i == 0){
+            trackStatesPerHit.push_back(*(static_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtIP)) ));
+
+            //add hits in increasing rho for the FIRST subTrack!!!!!
+            for( int j=nHitsInFit-1; j>=0; --j ){
+                TrackStateImpl ts = getTrackStateAtHit(marlinTrk.get(), hitsInFit[j].first);
+                trackStatesPerHit.push_back(ts);
+            }
         }
         else{
-            // This means VXD+SIT subTrack is not there (bug?!)! So we need to add tracks from i=1
-            for(int j=1; j < nSubTracks; ++j) subTracks.push_back( track->getTracks()[j] );
+            // check which hit is closer to the last hit of previous fit.
+            // and iterate starting from the closest
+            Vector3D innerHit ( hitsInFit.back().first->getPosition() );
+            Vector3D outerHit ( hitsInFit.front().first->getPosition() );
+            Vector3D prevHit ( trackStatesPerHit.back().getReferencePoint() );
+
+            if ( (innerHit - prevHit).r() < (outerHit - prevHit).r() ){
+                for( int j=nHitsInFit-1; j>=0; --j ){
+                    //iterate in increasing rho
+                    TrackStateImpl ts = getTrackStateAtHit(marlinTrk.get(), hitsInFit[j].first);
+                    trackStatesPerHit.push_back(ts);
+                }
+            }
+            else{
+                for( int j=0; j<nHitsInFit; ++j ){
+                    //iterate in decreasing rho
+                    TrackStateImpl ts = getTrackStateAtHit(marlinTrk.get(), hitsInFit[j].first);
+                    trackStatesPerHit.push_back(ts);
+                }
+            }
+        }
+        //if last subTrack
+        if (i == nTracks - 1){
+            // SET hit is not present in hitsInFit as it is composite hit from strips
+            // Add ts at the SET hit manualy which fitter returns with reffited track
+            // If LastHit != SET hit, then we duplicate previous track state at last TPC hit
+            // isn't pretty, but shouldn't affect the track length
+            trackStatesPerHit.push_back( *(static_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtLastHit)) ) );
+            if (extrapolateToEcal) trackStatesPerHit.push_back( *(static_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtCalorimeter) ) ) );
         }
     }
+    // one can maybe use hits of refittedTrack, but they include also hits that had failed in the fit
+    // code would look cleaner, but using hits that are failed in fit probably would have worse performance..
+    // needs to be checked.
+    return trackStatesPerHit;
+}
 
 
-    streamlog_out( MESSAGE ) << " -- Final LCIO Track has "<<nSubTracks<< " subtracks"<< std::endl ;
-    for(unsigned int i=0; i < nSubTracks; ++i){
-        const Track* subTrack = track->getTracks()[i];
-        streamlog_out( MESSAGE ) <<"subTrack i="<<i <<" n Hits "<<subTrack->getTrackerHits().size()<< " subtracks"<< std::endl ;
+double TOFAnaUtils::getTofClosest( EVENT::Cluster* cluster, EVENT::Track* track, double timeResolution){
+    const TrackState* tsEcal = track->getTrackState(TrackState::AtCalorimeter);
+    Vector3D trackPosAtEcal ( tsEcal->getReferencePoint() );
 
-    }
-    for(unsigned int i=0; i < subTracks.size(); ++i){
-        const Track* subTrack = subTracks[i];
-        int nHits = subTrack->getTrackerHits().size();
-        streamlog_out( MESSAGE ) << " --Adding subTrack i= "<< i << " has " <<  nHits << " hits "<< endl;
-        for (int j = 0; j < nHits; ++j) {
-            TrackerHit* hit = subTrack->getTrackerHits()[j];
-            XYZVector hitPos;
-            hitPos.SetCoordinates( hit->getPosition() );
-            ced_hit(hitPos.x(), hitPos.y(), hitPos.z(), 0, 5, 0x0400ff);
-        }
-
-        const TrackState* ts = subTrack->getTrackState(TrackState::AtLastHit);
-        XYZVectorF pos;
-        pos.SetCoordinates( ts->getReferencePoint() );
-        // ced_hit(pos.x(), pos.y(), pos.z(), 0, 12, 0x00ff42);
-
-
-        if (i == 0){
-            const TrackState* tsIp = subTrack->getTrackState(TrackState::AtIP);
-            XYZVectorF posIp;
-            posIp.SetCoordinates( tsIp->getReferencePoint() );
-            // ced_hit(posIp.x(), posIp.y(), posIp.z(), 0, 12, 0x00ff42);
-
-            double bField = MarlinUtil::getBzAtOrigin();
-            double pt = bField * 3e-4 / std::abs( tsIp->getOmega() );
-            double charge = ( tsIp->getOmega() > 0. ?  1. : -1. );
-            double Px = pt * std::cos(  tsIp->getPhi() );
-            double Py = pt * std::sin(  tsIp->getPhi() );
-            double Pz = pt * tsIp->getTanLambda() ;
-            double Xs = tsIp->getReferencePoint()[0] -  tsIp->getD0() * std::sin( tsIp->getPhi() ) ;
-            double Ys = tsIp->getReferencePoint()[1] +  tsIp->getD0() * std::cos( tsIp->getPhi() ) ;
-            double Zs = tsIp->getReferencePoint()[2] +  tsIp->getZ0() ;
-
-            // DDMarlinCED::drawHelix(bField, charge, Xs, Ys, Zs, Px, Py, Pz, 1, 2, 0xff0000, 0., 1855., 2450., 0);
-
-        }
-        if (i == subTracks.size() - 1){
-            // const TrackState* tsEcal = subTrack->getTrackState(TrackState::AtCalorimeter);
-            XYZVectorF posEcal;
-            posEcal.SetCoordinates( tsEcal.getReferencePoint() );
-            ced_hit(posEcal.x(), posEcal.y(), posEcal.z(), 0, 12, 0x00ff42);
-
-            double bField = MarlinUtil::getBzAtOrigin();
-            double pt = bField * 3e-4 / std::abs( tsEcal.getOmega() );
-            double charge = ( tsEcal.getOmega() > 0. ?  1. : -1. );
-            double Px = pt * std::cos(  tsEcal.getPhi() ) ;
-            double Py = pt * std::sin(  tsEcal.getPhi() ) ;
-            double Pz = pt * tsEcal.getTanLambda() ;
-            double Xs = tsEcal.getReferencePoint()[0] -  tsEcal.getD0() * std::sin( tsEcal.getPhi() ) ;
-            double Ys = tsEcal.getReferencePoint()[1] +  tsEcal.getD0() * std::cos( tsEcal.getPhi() ) ;
-            double Zs = tsEcal.getReferencePoint()[2] +  tsEcal.getZ0() ;
-            //helix at ECal
-            DDMarlinCED::drawHelix(-bField, -charge, Xs, Ys, Zs, Px, Py, Pz, 1, 2, 0xff9300, 0., 2000., 2450., 0);
-            DDMarlinCED::drawHelix(bField, charge, Xs, Ys, Zs, Px, Py, Pz, 1, 2, 0xff9300, 0., 2000., 2450., 0);
-
-
-        }
-
-    }
-
-    for ( const auto hit : cluster->getCalorimeterHits() ){
+    double hitTime = numeric_limits<double>::max();
+    double closestDistance = numeric_limits<double>::max();
+    for( auto hit : cluster->getCalorimeterHits() ){
         CHT hitType( hit->getType() );
         bool isECALHit = ( hitType.caloID() == CHT::ecal );
         if (! isECALHit) continue;
 
-        XYZVectorF hitPos;
-        hitPos.SetCoordinates( hit->getPosition() );
-        ced_hit(hitPos.x(), hitPos.y(), hitPos.z(), 0, 7, 0xff0000);
+        Vector3D hitPos( hit->getPosition() );
+        double dToTrack = (hitPos - trackPosAtEcal).r();
+        if( dToTrack < closestDistance ){
+            closestDistance = dToTrack;
+            hitTime = hit->getTime();
+        }
     }
 
+    if ( hitTime == numeric_limits<double>::max() ) return 0.;
+    return RandGauss::shoot(hitTime, timeResolution) - closestDistance/CLHEP::c_light;
+}
 
+
+double TOFAnaUtils::getTofFrankAvg( std::vector<EVENT::CalorimeterHit*> selectedHits, EVENT::Track* track, double timeResolution){
+    const TrackState* tsEcal = track->getTrackState(TrackState::AtCalorimeter);
+    Vector3D trackPosAtEcal ( tsEcal->getReferencePoint() );
+
+    int nHits = selectedHits.size();
+    if (nHits == 0) return 0.;
+
+    double tof = 0.;
+    for ( auto hit : selectedHits ){
+        Vector3D hitPos( hit->getPosition() );
+        double dToTrack = (hitPos - trackPosAtEcal).r();
+        tof += RandGauss::shoot(hit->getTime(), timeResolution) - dToTrack/CLHEP::c_light;
+    }
+    return tof/nHits;
+}
+
+
+double TOFAnaUtils::getTofFrankFit( std::vector<EVENT::CalorimeterHit*> selectedHits, EVENT::Track* track, double timeResolution){
+    const TrackState* tsEcal = track->getTrackState(TrackState::AtCalorimeter);
+    Vector3D trackPosAtEcal ( tsEcal->getReferencePoint() );
+
+    int nHits = selectedHits.size();
+    if (nHits == 0) return 0.;
+    else if (nHits == 1){
+        //we can't fit 1 point, but lets return something reasonable
+        Vector3D hitPos( selectedHits[0]->getPosition() );
+        double dToTrack = (hitPos - trackPosAtEcal).r();
+        return RandGauss::shoot(selectedHits[0]->getTime(), timeResolution) - dToTrack/CLHEP::c_light;
+    }
+
+    vector <double> x, y;
+    for ( auto hit : selectedHits ){
+        Vector3D hitPos( hit->getPosition() );
+        double dToTrack = (hitPos - trackPosAtEcal).r();
+        x.push_back(dToTrack);
+        double time = RandGauss::shoot(hit->getTime(), timeResolution);
+        y.push_back(time);
+    }
+
+    TGraph gr(nHits, x.data(), y.data());
+    gr.Fit("pol1", "Q");
+    return gr.GetFunction("pol1")->GetParameter(0);
 }

@@ -1,63 +1,51 @@
 #ifndef TOFAnaUtils_h
 #define TOFAnaUtils_h 1
 
-#include <iostream>
-#include <string>
 #include <vector>
-#include <utility>
-#include <algorithm>
-#include <cmath>
-#include <numeric>
-#include <limits>
-
 #include "EVENT/ReconstructedParticle.h"
 #include "EVENT/MCParticle.h"
-#include "UTIL/LCRelationNavigator.h"
-#include <UTIL/ILDConf.h>
-
-#include "marlinutil/DDMarlinCED.h"
-#include "marlinutil/CalorimeterHitType.h"
-#include "marlinutil/GeometryUtil.h"
-
 #include "IMPL/TrackStateImpl.h"
-
-
-#include "DDRec/DetectorData.h"
-#include "Math/Vector3D.h"
-
-#include "TGraphErrors.h"
-#include "TF1.h"
-#include "CLHEP/Random/Randomize.h"
+#include "MarlinTrk/IMarlinTrkSystem.h"
+#include "MarlinTrk/IMarlinTrack.h"
+#include "DDRec/Vector3D.h"
+#include "UTIL/LCRelationNavigator.h"
 
 namespace TOFAnaUtils{
-    using std::cout, std::endl, std::vector, std::string, std::pair, std::numeric_limits;
-    using ROOT::Math::XYZVector;
-    using ROOT::Math::XYZVectorF;
-    using dd4hep::Detector;
-    using dd4hep::DetElement;
-    using dd4hep::rec::FixedPadSizeTPCData;
-    using EVENT::ReconstructedParticle;
-    using EVENT::MCParticle;
-    using EVENT::LCObject;
-    using EVENT::Track;
-    using EVENT::TrackerHit;
-    using EVENT::Cluster;
-    using EVENT::CalorimeterHit;
-    using UTIL::LCRelationNavigator;
 
-    MCParticle* getMcMaxWeight(LCRelationNavigator pfoToMc, ReconstructedParticle* pfo);
-    pair<double, double> getTpcR();
-    TrackerHit* getSetHit(Track* track, double tpcROuter);
+    EVENT::MCParticle* getMcMaxWeight(UTIL::LCRelationNavigator pfoToMc, EVENT::ReconstructedParticle* pfo);
 
-    CalorimeterHit* getClosestHit(Cluster* cluster, XYZVectorF posTrackAtCalo);
-    pair<XYZVectorF, double> getFastestHit(Cluster* cluster, double smearing=0.);
-    double getTofFrankFit(Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing=0., unsigned int nLayers=10);
-    double getTofFrankAvg(Cluster* cluster, XYZVectorF posTrackAtCalo, XYZVectorF momTrackAtCalo, double smearing=0., unsigned int nLayers=10);
+    int getNEcalHits(EVENT::Cluster* cluster);
 
-    int getNEcalHits(Cluster* cluster);
+    bool sortByRho(EVENT::TrackerHit* a, EVENT::TrackerHit* b);
 
-    void drawPfo(Track* track, Cluster* cluster, const TrackStateImpl tsEcal);
+    IMPL::TrackStateImpl getTrackStateAtHit(MarlinTrk::IMarlinTrack* marlinTrk, EVENT::TrackerHit* hit);
+
+    dd4hep::rec::Vector3D getHelixMomAtTrackState(const EVENT::TrackState& ts, double bField);
+
+    double getHelixArcLength(const EVENT::TrackState& ts1, const EVENT::TrackState& ts2);
+
+    double getHelixLengthAlongZ(const EVENT::TrackState& ts1, const EVENT::TrackState& ts2);
+
+    double getHelixNRevolutions(const EVENT::TrackState& ts1, const EVENT::TrackState& ts2);
+
+    double getTPCOuterR();
+
+    EVENT::TrackerHit* getSETHit(EVENT::Track* track, double tpcOuterR);
+
+    std::vector<EVENT::CalorimeterHit*> selectFrankEcalHits( EVENT::Cluster* cluster, EVENT::Track* track, int maxEcalLayer, double bField );
+
+    std::vector<EVENT::Track*> getSubTracks(EVENT::Track* track);
+
+    std::vector<IMPL::TrackStateImpl> getTrackStatesPerHit(std::vector<EVENT::Track*> tracks, MarlinTrk::IMarlinTrkSystem* trkSystem, bool extrapolateToEcal, double bField);
+
+    double getTofClosest( EVENT::Cluster* cluster, EVENT::Track* track, double timeResolution);
+
+    double getTofFrankAvg( std::vector<EVENT::CalorimeterHit*> selectedHits, EVENT::Track* track, double timeResolution);
+
+    double getTofFrankFit( std::vector<EVENT::CalorimeterHit*> selectedHits, EVENT::Track* track, double timeResolution);
 
 }
+
+
 
 #endif

@@ -1,399 +1,228 @@
 #include "TOFAnalysis.hpp"
 #include "TOFAnaUtils.hpp"
 
-#include "MarlinTrk/Factory.h"
-#include "MarlinTrk/IMarlinTrack.h"
-#include "MarlinTrk/MarlinTrkUtils.h"
-#include "HelixClass.h"
-#include "IMPL/TrackStateImpl.h"
-#include "IMPL/TrackImpl.h"
+#include <chrono>
 
-#include "marlinutil/DDMarlinCED.h"
+#include "EVENT/LCCollection.h"
+#include "UTIL/PIDHandler.h"
+
+#include "marlin/Global.h"
+#include "marlin/ProcessorEventSeeder.h"
+#include "marlin/VerbosityLevels.h"
+#include "marlinutil/GeometryUtil.h"
+#include "MarlinTrk/Factory.h"
+#include "EVENT/SimTrackerHit.h"
+#include "UTIL/LCRelationNavigator.h"
+#include "CLHEP/Random/Randomize.h"
+
+#include "HelixClass.h"
 
 using namespace TOFAnaUtils;
+using std::vector;
+using std::string;
+using EVENT::LCCollection;
+using EVENT::ReconstructedParticle;
+using EVENT::TrackerHit;
+using EVENT::Track;
+using EVENT::SimTrackerHit;
+using EVENT::Cluster;
+using EVENT::CalorimeterHit;
+using EVENT::TrackState;
+using EVENT::LCObject;
+using UTIL::LCRelationNavigator;
+using CLHEP::RandGauss;
+using dd4hep::rec::Vector3D;
 
-TOFAnalysis aTOFAnalysis;
+TOFAnalysis aTOFAnalysis ;
 
-TOFAnalysis::TOFAnalysis() : Processor("TOFAnalysis"){
-    registerProcessorParameter(string("outputFile"),
-                               string("Name of the output root file"),
-                               _outputFileName,
-                               string("TOFAnalysis_RENAME.root"));
-}
+
+TOFAnalysis::TOFAnalysis() : marlin::Processor("TOFAnalysis") {}
+
 
 void TOFAnalysis::init(){
-    DDMarlinCED::init(this);
+    marlin::Global::EVENTSEEDER->registerProcessor(this);
+    _bField = MarlinUtil::getBzAtOrigin();
+    _tpcOuterR = getTPCOuterR();
 
-    cout.precision(7);
-    _nEvent = 0;
-    _file.reset( new TFile(_outputFileName.c_str(), "RECREATE") );
+    _trkSystem = MarlinTrk::Factory::createMarlinTrkSystem("DDKalTest", nullptr, "");
+    _trkSystem->setOption( MarlinTrk::IMarlinTrkSystem::CFG::useQMS, true);
+    _trkSystem->setOption( MarlinTrk::IMarlinTrkSystem::CFG::usedEdx, true);
+    _trkSystem->setOption( MarlinTrk::IMarlinTrkSystem::CFG::useSmoothing, true);
+    _trkSystem->init();
+
+    _file.reset( new TFile("rename.root", "RECREATE") );
     _tree.reset( new TTree("TOFAnalysis", "TOFAnalysis") );
 
     _tree->Branch("pdg", &_pdg);
     _tree->Branch("has_set_hit", &_hasSetHit);
     _tree->Branch("n_ecal_hits", &_nEcalHits);
-    _tree->Branch("n_fit_hits", &_nFitHits);
+    _tree->Branch("ts_pos_ecal", &_posECAL);
+    _tree->Branch("ts_mom_ecal", &_momECAL);
+    _tree->Branch("ts_z0_ecal", &_z0ECAL);
+    _tree->Branch("ts_d0_ecal", &_d0ECAL);
 
-    vector<string> tsNames{"ip", "first", "last", "ecal"};
-    for (auto ts : tsNames){
-        _tree->Branch( Form("ts_%s_pos", ts.c_str()), &_tsPos[ts] );
-        _tree->Branch( Form("ts_%s_mom", ts.c_str()), &_tsMom[ts] );
-        _tree->Branch( Form("ts_%s_omega", ts.c_str()), &_tsOmega[ts] );
-        _tree->Branch( Form("ts_%s_tanL", ts.c_str()), &_tsTanL[ts] );
-        _tree->Branch( Form("ts_%s_phi", ts.c_str()), &_tsPhi[ts] );
-        _tree->Branch( Form("ts_%s_d0", ts.c_str()), &_tsD0[ts] );
-        _tree->Branch( Form("ts_%s_z0", ts.c_str()), &_tsZ0[ts] );
+    _tree->Branch("track_length_set", &_trackLengthSET);
+    _tree->Branch("momentum_set", &_momentumSET);
+
+    _tree->Branch("track_length_ecal", &_trackLengthECAL);
+    _tree->Branch("momentum_ecal", &_momentumECAL);
+
+    //for every time resolution
+    for(int j=0; j < 11; ++j){
+        _tree->Branch(Form("tof_closest_%dps", j*10 ), &(_tof_closest[j]) );
+        _tree->Branch(Form("tof_set_%dps", j*10 ), &(_tof_set[j]) );
+
+        //for number of layers to take
+        for(int l=1; l<30; ++l){
+            _tree->Branch(Form("tof_avg_%dps_%dl", j*10, l), &(_tof_avg[j][l]) );
+            _tree->Branch(Form("tof_fit_%dps_%dl", j*10, l), &(_tof_fit[j][l]) );
+        }
     }
-
-    _tree->Branch("track_length_set", &_trackLength["set"]);
-    _tree->Branch("track_length_ecal", &_trackLength["ecal"]);
-    _tree->Branch("n_curls_set", &_nCurls["set"]);
-    _tree->Branch("n_curls_ecal", &_nCurls["ecal"]);
-
-    _tree->Branch("pos_set_hit", &_posSetHit);
-    _tree->Branch("pos_closest", &_posClosest);
-
-    _tree->Branch("mom_hm_set", &_mom["hmSet"]);
-    _tree->Branch("mom_hm_ecal", &_mom["hmEcal"]);
-
-    for(unsigned int i=0; i < std::size(_smearings); ++i ){
-        _tree->Branch(Form("pos_fastest_%d", int(_smearings[i]) ), &( _posFastest[i] ) );
-        _tree->Branch(Form("tof_fastest_%d", int(_smearings[i]) ), &( _tofFastest[i] ) );
-        _tree->Branch(Form("tof_closest_%d", int(_smearings[i]) ), &( _tofClosest[i] ) );
-        _tree->Branch(Form("tof_set_front_%d", int(_smearings[i]) ), &( _tofSetFront[i] ) );
-        _tree->Branch(Form("tof_set_back_%d", int(_smearings[i]) ), &( _tofSetBack[i] ) );
-        _tree->Branch(Form("tof_frank_fit_%d", int(_smearings[i]) ), &( _tofFrankFit[i] ) );
-        _tree->Branch(Form("tof_frank_avg_%d", int(_smearings[i]) ), &( _tofFrankAvg[i] ) );
-    }
-
-    _bField = MarlinUtil::getBzAtOrigin();
-    _tpcROuter = TOFAnaUtils::getTpcR().second;
-    _trkSystem = MarlinTrk::Factory::createMarlinTrkSystem( "DDKalTest", nullptr, "" ) ;
-
-    _trkSystem->setOption( MarlinTrk::IMarlinTrkSystem::CFG::useQMS, true);
-    _trkSystem->setOption( MarlinTrk::IMarlinTrkSystem::CFG::usedEdx, true);
-    _trkSystem->setOption( MarlinTrk::IMarlinTrkSystem::CFG::useSmoothing, true);
-    _trkSystem->init() ;
 
 }
 
 
-void TOFAnalysis::processEvent(LCEvent* evt){
+void TOFAnalysis::processEvent(EVENT::LCEvent * evt){
+    RandGauss::setTheSeed( marlin::Global::EVENTSEEDER->getSeed(this) );
     ++_nEvent;
-    // if( _nEvent != 38) return;
-    streamlog_out(MESSAGE)<<"******Event****** "<<_nEvent<<endl;
+    streamlog_out(MESSAGE)<<"************Event************ "<<_nEvent<<std::endl;
 
     LCCollection* pfos = evt->getCollection("PandoraPFOs");
     LCRelationNavigator pfoToMc( evt->getCollection("RecoMCTruthLink") );
-
-    LCRelationNavigator spPointToSimHit( evt->getCollection("SETSpacePointRelations") );
+    LCCollection* setRelations = evt->getCollection("SETSpacePointRelations");    
+    LCRelationNavigator navigatorSET = LCRelationNavigator( setRelations );
 
     for (int i=0; i<pfos->getNumberOfElements(); ++i){
-        /////////////////////////////////// Load all info from PFO
-        ReconstructedParticle* pfo = dynamic_cast <ReconstructedParticle*> ( pfos->getElementAt(i) );
+        //reset all branches
+        for(int j=0; j < 11; ++j){
+            _tof_closest[j] = 0.;
+            _tof_set[j] = 0.;
+            //for number of layers to take
+            for(int l=1; l<30; ++l){
+                _tof_avg[j][l] = 0.;
+                _tof_fit[j][l] = 0.;
+            }
+        }
+
+        ReconstructedParticle* pfo = static_cast <ReconstructedParticle*> ( pfos->getElementAt(i) );
+
+        int nClusters = pfo->getClusters().size();
+        int nTracks = pfo->getTracks().size();
+
+        if( nClusters != 1 || nTracks != 1) continue;
+        Track* track = pfo->getTracks()[0];
+        const TrackState* ts = track->getTrackState(TrackState::AtCalorimeter);
+        double tsOmega = ts->getOmega();
+        double tsTanL = ts->getTanLambda();
+        double tsPhi =  ts->getPhi();
+        _d0ECAL = ts->getD0();
+        _z0ECAL = ts->getZ0();
+        _posECAL.SetCoordinates( ts->getReferencePoint() );
+        HelixClass helixEcal;
+        helixEcal.Initialize_Canonical(tsPhi, _d0ECAL, _z0ECAL, tsOmega, tsTanL, _bField);
+        _momECAL.SetCoordinates( helixEcal.getMomentum() );
+
+        Cluster* cluster = pfo->getClusters()[0];
+        _nEcalHits = getNEcalHits(cluster);
 
         MCParticle* mc = TOFAnaUtils::getMcMaxWeight(pfoToMc, pfo);
         if(mc == nullptr) continue;
-
-        const vector<Cluster*>& clusters = pfo->getClusters();
-        if(clusters.size() != 1) continue;
-        Cluster* cluster = clusters.at(0);
-        _nEcalHits = TOFAnaUtils::getNEcalHits(cluster);
-        if (_nEcalHits == 0) continue;
-
-        const vector<Track*>& tracks = pfo->getTracks();
-        if(tracks.size() != 1) continue;
-        Track* track = tracks.at(0);
-        _nFitHits = 0;
-        streamlog_out(DEBUG8)<<"******************* PFO "<<i<<" *******************"<<endl;
-        streamlog_out(DEBUG3)<<"Track has "<<track->getTracks().size()<<" subtracks"<<endl;
-        streamlog_out(DEBUG3)<<"Track has "<<track->getTrackerHits().size()<<" hits"<<endl;
-        streamlog_out(DEBUG3)<<"VXD used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::VXD)*2-2]<<endl;
-        streamlog_out(DEBUG3)<<"VXD not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::VXD)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::VXD)*2-2]<<endl;
-        streamlog_out(DEBUG3)<<"SIT used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SIT)*2-2]<<endl;
-        streamlog_out(DEBUG3)<<"SIT not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SIT)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::SIT)*2-2]<<endl;
-        streamlog_out(DEBUG3)<<"FTD used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::FTD)*2-2]<<endl;
-        streamlog_out(DEBUG3)<<"FTD not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::FTD)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::FTD)*2-2]<<endl;
-        streamlog_out(DEBUG3)<<"TPC used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-2]<<endl;
-        streamlog_out(DEBUG3)<<"TPC not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-2]<<endl;
-        streamlog_out(DEBUG3)<<"SET used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-2]<<endl;
-        streamlog_out(DEBUG3)<<"SET not used: "<<track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-1] - track->getSubdetectorHitNumbers()[(ILDDetID::SET)*2-2]<<endl;
-
-        for(unsigned int j=0; j<track->getTracks().size(); ++j){
-            streamlog_out(DEBUG3)<<"subTrack j="<<j<<" has "<<track->getTracks()[j]->getTrackerHits().size()<<" hits"<<endl;
-        }
-
-        TrackerHit* setHit = TOFAnaUtils::getSetHit(track, _tpcROuter);
-        _hasSetHit = (setHit != nullptr);
-        // if (!_hasSetHit) continue;
-
-        ///////////////////////////////////
         _pdg = mc->getPDG();
 
-        if (_hasSetHit) _posSetHit.SetCoordinates( setHit->getPosition() );
+        ///////////////////////////////////////////////////////////////
+        // This part calculates track length and momentum harmonic mean
+        ///////////////////////////////////////////////////////////////
+        vector<Track*> subTracks = getSubTracks(track);
 
-        // if (_hasSetHit)
-        const LCObjectVec& setSimHits = spPointToSimHit.getRelatedToObjects( setHit );
+        {
+            vector<TrackStateImpl> trackStates = getTrackStatesPerHit(subTracks, _trkSystem, false, _bField);
 
-        ///////////////////////WRITE TRACK LENGTHS/////////////////////
-        auto sortByRho = [](TrackerHit* a, TrackerHit* b) {
-            XYZVector posA, posB;
-            posA.SetCoordinates( a->getPosition() );
-            posB.SetCoordinates( b->getPosition() );
-            return posA.rho() < posB.rho();
-        };
+            double trackLength = 0.;
+            double harmonicMom = 0.;
+            int nTrackStates = trackStates.size();
+            for( int j=1; j < nTrackStates; ++j ){
+                //we check which track length formula to use
+                double nTurns = getHelixNRevolutions( trackStates[j-1], trackStates[j] );
+                double arcLength;
+                // we cannot calculate arc length for more than pi revolution using delta phi. Use formula with only z
+                if ( nTurns <= 0.5 ) arcLength = getHelixArcLength( trackStates[j-1], trackStates[j] );
+                else arcLength = getHelixLengthAlongZ( trackStates[j-1], trackStates[j] );
 
-        auto getArcLength = [](double phi1, double phi2, double omega, double z1, double z2) {
-            double dPhi = std::abs(phi2-phi1);
-            if (dPhi > M_PI) dPhi = 2*M_PI - dPhi;
-            return std::sqrt( std::pow(dPhi/omega, 2) + std::pow(z2-z1, 2) );
-        };
-
-        //This is how it should look like!!!!!!!!!
-        // getTracksToFit();
-        vector<Track*> tracksToFit;
-        tracksToFit.push_back(track);
-        int nSubTracks = track->getTracks().size();
-        if (nSubTracks != 1){
-            int nTpcHits = track->getSubdetectorHitNumbers()[(ILDDetID::TPC)*2-1]; // -1 all hits -2 - used in fit
-            int nSubTrack0Hits = track->getTracks()[0]->getTrackerHits().size();
-            int nSubTrack1Hits = track->getTracks()[1]->getTrackerHits().size();
-            //Deviation on 1 hit may happen for some reason...
-            if( std::abs(nTpcHits - nSubTrack0Hits) <= 1  ){
-                // This means VXD+SIT subTrack is not there (bug?!)! So we need to continue to add tracks from i=1
-                for(int j=1; j < nSubTracks; ++j) tracksToFit.push_back( track->getTracks()[j] );
+                Vector3D mom = getHelixMomAtTrackState( trackStates[j-1], _bField );
+                trackLength += arcLength;
+                harmonicMom += arcLength/mom.r2();
             }
-            else if ( std::abs(nTpcHits - nSubTrack1Hits) <= 1 ){
-                for(int j=2; j < nSubTracks; ++j) tracksToFit.push_back( track->getTracks()[j] );
-            }
-            else{
-                continue;
-            }
+            harmonicMom = std::sqrt(trackLength/harmonicMom);
+
+            _trackLengthSET = trackLength;
+            _momentumSET = harmonicMom;
         }
-        // getTrackStatesPerHit();
-        vector<TrackStateImpl> trackStatesPerHit;
-        for(unsigned int j=0; j < tracksToFit.size(); ++j){
-            vector <TrackerHit*> trackHits = tracksToFit[j]->getTrackerHits();
-            sort(trackHits.begin(), trackHits.end(), sortByRho);
-            // setup initial dummy covariance matrix
-            vector<float> covMatrix(15);
-            // initialize variances
-            covMatrix[0]  = 1e+06; //sigma_d0^2
-            covMatrix[2]  = 100.; //sigma_phi0^2
-            covMatrix[5]  = 0.00001; //sigma_omega^2
-            covMatrix[9]  = 1e+06; //sigma_z0^2
-            covMatrix[14] = 100.; //sigma_tanl^2
-            double maxChi2PerHit = 100.;
-            MarlinTrk::IMarlinTrack* marlinTrk = _trkSystem->createTrack();
-            TrackImpl refittedTrack;
+        {
+            vector<TrackStateImpl> trackStates = getTrackStatesPerHit(subTracks, _trkSystem, true, _bField);
 
-            //Need to initialize trackState at last hit
-            TrackStateImpl preFit = *(tracksToFit[j]->getTrackState(TrackState::AtLastHit));
-            preFit.setCovMatrix( covMatrix );
-            int errorFit = MarlinTrk::createFinalisedLCIOTrack(marlinTrk, trackHits, &refittedTrack, MarlinTrk::IMarlinTrack::backward, &preFit , _bField, maxChi2PerHit);
-            if (errorFit != 0) continue;
+            double trackLength = 0.;
+            double harmonicMom = 0.;
+            int nTrackStates = trackStates.size();
+            for( int j=1; j < nTrackStates; ++j ){
+                //we check which track length formula to use
+                double nTurns = getHelixNRevolutions( trackStates[j-1], trackStates[j] );
+                double arcLength;
+                // we cannot calculate arc length for more than pi revolution using delta phi. Use formula with only z
+                if ( nTurns <= 0.5 ) arcLength = getHelixArcLength( trackStates[j-1], trackStates[j] );
+                else arcLength = getHelixLengthAlongZ( trackStates[j-1], trackStates[j] );
 
-            //fit is finished, collect the hits
-            vector<pair<TrackerHit*, double> > hitsInFit;
-            marlinTrk->getHitsInFit(hitsInFit);
-            _nFitHits += hitsInFit.size();
-
-            // if first subTrack
-            if (j == 0){
-                trackStatesPerHit.push_back(*(dynamic_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtIP)) ));
-                _tsOmega[ "ip" ] = trackStatesPerHit.back().getOmega();
-                _tsTanL[ "ip" ] = trackStatesPerHit.back().getTanLambda();
-                _tsPhi[ "ip" ] = trackStatesPerHit.back().getPhi();
-                _tsD0[ "ip" ] = trackStatesPerHit.back().getD0();
-                _tsZ0[ "ip" ] = trackStatesPerHit.back().getZ0();
-                _tsPos[ "ip" ].SetCoordinates( trackStatesPerHit.back().getReferencePoint() );
-                HelixClass helixIp;
-                helixIp.Initialize_Canonical(_tsPhi["ip"], _tsD0["ip"], _tsZ0["ip"], _tsOmega["ip"], _tsTanL["ip"], _bField);
-                _tsMom[ "ip" ].SetCoordinates( helixIp.getMomentum() );
-
-                //do reverse, so it increases in rho for the FIRST TRACK!!!!!
-                for( int k = hitsInFit.size() - 1; k >= 0 ; --k ){
-                    TrackStateImpl ts;
-                    double chi2Tmp;
-                    int ndfTmp;
-                    marlinTrk->getTrackState(hitsInFit[k].first, ts, chi2Tmp, ndfTmp);
-                    trackStatesPerHit.push_back(ts);
-
-                    if (k == hitsInFit.size() - 1){
-                        _tsOmega[ "first" ] = trackStatesPerHit.back().getOmega();
-                        _tsTanL[ "first" ] = trackStatesPerHit.back().getTanLambda();
-                        _tsPhi[ "first" ] = trackStatesPerHit.back().getPhi();
-                        _tsD0[ "first" ] = trackStatesPerHit.back().getD0();
-                        _tsZ0[ "first" ] = trackStatesPerHit.back().getZ0();
-                        _tsPos[ "first" ].SetCoordinates( trackStatesPerHit.back().getReferencePoint() );
-                        HelixClass helixFirst;
-                        helixFirst.Initialize_Canonical(_tsPhi["first"], _tsD0["first"], _tsZ0["first"], _tsOmega["first"], _tsTanL["first"], _bField);
-                        _tsMom[ "first" ].SetCoordinates( helixFirst.getMomentum() );
-                    }
-                }
+                Vector3D mom = getHelixMomAtTrackState( trackStates[j-1], _bField );
+                trackLength += arcLength;
+                harmonicMom += arcLength/mom.r2();
             }
-            else{
-                // check which hit is closer to the previous hit. and iterate starting from that
-                TrackerHit* minRhoHit = hitsInFit.back().first;
-                TrackerHit* maxRhoHit = hitsInFit.front().first;
-                XYZVector minPos, maxPos;
-                XYZVectorF prevFitPos;
-                minPos.SetCoordinates(minRhoHit->getPosition());
-                maxPos.SetCoordinates(maxRhoHit->getPosition());
-                prevFitPos.SetCoordinates( trackStatesPerHit.back().getReferencePoint() );
-                if ( (minPos - prevFitPos).r() < (maxPos - prevFitPos).r() ){
-                    //iterate from minRho hit
-                    for( int k = hitsInFit.size() - 1; k >= 0 ; --k ){
-                        TrackStateImpl ts;
-                        double chi2Tmp;
-                        int ndfTmp;
-                        marlinTrk->getTrackState(hitsInFit[k].first, ts, chi2Tmp, ndfTmp);
-                        trackStatesPerHit.push_back(ts);
-                    }
+            harmonicMom = std::sqrt(trackLength/harmonicMom);
+
+            _trackLengthECAL = trackLength;
+            _momentumECAL = harmonicMom;
+        }
+
+        TrackerHit* hitSET = getSETHit(track, _tpcOuterR);
+        _hasSetHit = ( hitSET != nullptr );
+
+        //for every time resolution
+        for(int j=0; j < 11; ++j){
+            double timeResolution = j*10./1000.; // in ns
+            _tof_closest[j] = getTofClosest(cluster, track, timeResolution);
+
+            _tof_set[j] = 0.;
+            if ( _hasSetHit ){
+                const vector<LCObject*>& simHitsSET = navigatorSET.getRelatedToObjects( hitSET );
+                if ( simHitsSET.size() >= 2 ){
+                    //It must be always 2, but just in case...
+                    if (simHitsSET.size() > 2) streamlog_out(WARNING)<<"Found more than two SET strip hits! Writing TOF as an average of the first two elements in the array."<<std::endl;
+
+                    SimTrackerHit* simHitSETFront = static_cast <SimTrackerHit*>( simHitsSET[0] );
+                    SimTrackerHit* simHitSETBack = static_cast <SimTrackerHit*>( simHitsSET[1] );
+                    double timeFront = RandGauss::shoot(simHitSETFront->getTime(), timeResolution);
+                    double timeBack = RandGauss::shoot(simHitSETBack->getTime(), timeResolution);
+                        _tof_set[j] = (timeFront + timeBack)/2.;
+                }
+                else if (simHitsSET.size() == 1){
+                    streamlog_out(WARNING)<<"Found only one SET strip hit! Writing TOF from a single strip."<<std::endl;
+                    SimTrackerHit* simHitSET = static_cast <SimTrackerHit*>(simHitsSET[0]);
+                    _tof_set[j] = RandGauss::shoot(simHitSET->getTime(), timeResolution);
                 }
                 else{
-                    //iterate from maxRho hit
-                    for(unsigned int k = 0; k < hitsInFit.size() ; ++k ){
-                        TrackStateImpl ts;
-                        double chi2Tmp;
-                        int ndfTmp;
-                        marlinTrk->getTrackState(hitsInFit[k].first, ts, chi2Tmp, ndfTmp);
-                        trackStatesPerHit.push_back(ts);
-                    }
-                }
-            }
-            //if last subTrack
-            if (j == tracksToFit.size() - 1){
-                //add track states at SET hit. If it doesn't exist, then it copies the most outer tpc hit (shouldn't affect track length as it is dublicate)
-                trackStatesPerHit.push_back( *(dynamic_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtLastHit)) ) );
-                _tsOmega[ "last" ] = trackStatesPerHit.back().getOmega();
-                _tsTanL[ "last" ] = trackStatesPerHit.back().getTanLambda();
-                _tsPhi[ "last" ] = trackStatesPerHit.back().getPhi();
-                _tsD0[ "last" ] = trackStatesPerHit.back().getD0();
-                _tsZ0[ "last" ] = trackStatesPerHit.back().getZ0();
-                _tsPos[ "last" ].SetCoordinates( trackStatesPerHit.back().getReferencePoint() );
-                HelixClass helixLast;
-                helixLast.Initialize_Canonical(_tsPhi["last"], _tsD0["last"], _tsZ0["last"], _tsOmega["last"], _tsTanL["last"], _bField);
-                _tsMom[ "last" ].SetCoordinates( helixLast.getMomentum() );
-
-                trackStatesPerHit.push_back( *(dynamic_cast<const TrackStateImpl*> (refittedTrack.getTrackState(TrackState::AtCalorimeter) ) ) );
-                _tsOmega[ "ecal" ] = trackStatesPerHit.back().getOmega();
-                _tsTanL[ "ecal" ] = trackStatesPerHit.back().getTanLambda();
-                _tsPhi[ "ecal" ] = trackStatesPerHit.back().getPhi();
-                _tsD0[ "ecal" ] = trackStatesPerHit.back().getD0();
-                _tsZ0[ "ecal" ] = trackStatesPerHit.back().getZ0();
-                _tsPos[ "ecal" ].SetCoordinates( trackStatesPerHit.back().getReferencePoint() );
-                HelixClass helixEcal;
-                helixEcal.Initialize_Canonical(_tsPhi["ecal"], _tsD0["ecal"], _tsZ0["ecal"], _tsOmega["ecal"], _tsTanL["ecal"], _bField);
-                _tsMom[ "ecal" ].SetCoordinates( helixEcal.getMomentum() );
-            }
-
-            delete marlinTrk;
-        }
-        // getArcLengths
-        vector<double> phi, omega, z, arcLength, arcCurl, p, d0, z0, tanL, pWeighted;
-        for(unsigned int j=0; j < trackStatesPerHit.size(); ++j ){
-            phi.push_back( trackStatesPerHit[j].getPhi() );
-            d0.push_back( trackStatesPerHit[j].getD0() );
-            z0.push_back( trackStatesPerHit[j].getZ0() );
-            omega.push_back( trackStatesPerHit[j].getOmega() );
-            tanL.push_back( trackStatesPerHit[j].getTanLambda() );
-            z.push_back(trackStatesPerHit[j].getReferencePoint()[2] + trackStatesPerHit[j].getZ0() );
-            HelixClass helix;
-            helix.Initialize_Canonical(phi[j], d0[j], z0[j], omega[j], tanL[j], _bField);
-            XYZVectorF mom;
-            mom.SetCoordinates(helix.getMomentum());
-            p.push_back( mom.r() );
-            //can't calculate track length from 1 element
-            if (j == 0) {
-                arcLength.push_back(0.);
-                arcCurl.push_back(0.);
-                pWeighted.push_back(0.);
-                continue;
-            };
-            //for this we need to check if last arc between lastHit and Ecal less than pi
-            if (j == trackStatesPerHit.size() - 1){
-                double dLastHitToCalo = std::abs( (z[j] - z[j-1]) / tanL[j-1]);
-                if( dLastHitToCalo > M_PI / std::abs(omega[j-1]) ){
-                    // we cannot calculate with delta phi formula. Let's use formula with only dz assuming constant curvature
-                    arcLength.push_back(std::abs(z[j] - z[j-1]) * std::sqrt( 1. + 1./(tanL[j-1]*tanL[j-1]) ) );
-                    arcCurl.push_back( dLastHitToCalo * std::abs(omega[j-1]) );
-                    pWeighted.push_back( arcLength[j] /(p[j]*p[j]) );
-                    continue;
+                    // this happens very rarily (0.1%). When >1 simHits associated with a single strip none simHits are written by the DDSpacePointBuilder.
+                    streamlog_out(WARNING)<<"Found NO simHits associated with the found SET hit! Writing TOF as 0."<<std::endl;
                 }
             }
 
-            arcLength.push_back( getArcLength( phi[j-1], phi[j], omega[j-1], z[j-1], z[j] ) );
-            double deltaPhi = std::abs(phi[j] - phi[j-1]);
-            if (deltaPhi > M_PI) deltaPhi = 2*M_PI - deltaPhi;
-            arcCurl.push_back( deltaPhi );
-            pWeighted.push_back( arcLength[j] /(p[j]*p[j]) );
-        }
-
-        // just sum
-        if (trackStatesPerHit.size() != 0){
-            _trackLength["set"] = std::accumulate(arcLength.begin(), arcLength.end() - 1, 0.);
-            _nCurls["set"] = std::accumulate(arcCurl.begin(), arcCurl.end() - 1, 0.)/(2.*M_PI);
-            _mom["hmSet"] = std::sqrt(_trackLength["set"] / std::accumulate(pWeighted.begin(), pWeighted.end() - 1, 0.) );
-        }
-        else{
-            _trackLength["set"] = 0.;
-            _nCurls["set"] = 0.;
-            _mom["hmSet"] = 0.;
-        }
-
-        _trackLength["ecal"] = std::accumulate(arcLength.begin(), arcLength.end(), 0.);
-        _nCurls["ecal"] = std::accumulate(arcCurl.begin(), arcCurl.end(), 0.)/(2.*M_PI);
-        _mom["hmEcal"] = std::sqrt(_trackLength["ecal"] / std::accumulate(pWeighted.begin(), pWeighted.end(), 0.) );
-
-        SimTrackerHit* setSimHitFront = nullptr;
-        SimTrackerHit* setSimHitBack = nullptr;
-        if (_hasSetHit){
-            setSimHitFront = dynamic_cast <SimTrackerHit*> (setSimHits.at(0) );
-            setSimHitBack = dynamic_cast <SimTrackerHit*> (setSimHits.at(1) );
-        }
-
-        CalorimeterHit* closestHit = TOFAnaUtils::getClosestHit( cluster, _tsPos["ecal"] );
-        _posClosest.SetCoordinates( closestHit->getPosition() );
-
-        for(unsigned int j=0; j < std::size(_smearings); ++j ){
-            pair<XYZVectorF, double> fastestHit = TOFAnaUtils::getFastestHit( cluster, _smearings[j] / 1000. );
-            _posFastest[j] = fastestHit.first;
-            _tofFastest[j] = fastestHit.second - ( _posFastest[j] - _tsPos["ecal"] ).r()/CLHEP::c_light;
-
-            _tofClosest[j] = CLHEP::RandGauss::shoot( closestHit->getTime(), _smearings[j] / 1000. ) - ( _posClosest - _tsPos["ecal"] ).r()/CLHEP::c_light;
-            if (_hasSetHit){
-                _tofSetFront[j] = CLHEP::RandGauss::shoot( setSimHitFront->getTime(), _smearings[j] / 1000. );
-                _tofSetBack[j] =  CLHEP::RandGauss::shoot( setSimHitBack->getTime(), _smearings[j] / 1000. );
+            //for number of layers to take
+            for(int l=1; l<30; ++l){
+                vector<CalorimeterHit*> frankHits = selectFrankEcalHits(cluster, track, l, _bField);
+                _tof_avg[j][l] = getTofFrankAvg(frankHits, track, timeResolution);
+                _tof_fit[j][l] = getTofFrankFit(frankHits, track, timeResolution);
             }
-            else{
-                _tofSetFront[j] = 0.;
-                _tofSetBack[j] = 0.;
-            }
-            _tofFrankFit[j] = TOFAnaUtils::getTofFrankFit( cluster, _tsPos["ecal"], _tsMom["ecal"], _smearings[j] / 1000. );
-            _tofFrankAvg[j] = TOFAnaUtils::getTofFrankAvg( cluster, _tsPos["ecal"], _tsMom["ecal"], _smearings[j] / 1000. );
         }
 
-        // if ( (!_hasSetHit) && std::abs(_posClosest.z()) < 2200. ){
-        // if ( (_tsPos["ecal"] -_posClosest).r() > 4500. ){
-        if ( _nEvent == 38 && i == 5 ){
-        // if ( false ){
-            DDMarlinCED::newEvent(this);
-            DDMarlinCED::drawDD4hepDetector(_theDetector, 0, vector<string>{});
-            DDCEDPickingHandler& pHandler=DDCEDPickingHandler::getInstance();
-            pHandler.update(evt);
-            TOFAnaUtils::drawPfo(track, cluster, trackStatesPerHit.back() );
-
-            streamlog_out(WARNING)<<"_ts ecal: "<<_tsPos["ecal"]<<endl;
-            streamlog_out(WARNING)<<"posClosest: "<<_posClosest<<endl;
-            streamlog_out(WARNING)<<"tanL ip : "<<_tsTanL["ip"]<<endl;
-            streamlog_out(WARNING)<<"tanL ecal: "<<_tsTanL["ecal"]<<endl;
-            DDMarlinCED::draw(this, 1);
-        }
-
-        _tree->Fill();
+    _tree->Fill();
     }
-
 }
 
 void TOFAnalysis::end(){
